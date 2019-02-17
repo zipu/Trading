@@ -1,4 +1,4 @@
-import os, logging, traceback
+import os, logging, traceback, weakref
 from collections import OrderedDict  
 from datetime import datetime, timedelta
 import tables as tb
@@ -20,21 +20,37 @@ class OHLC(tb.IsDescription):
         - close: 종가
         - volume: 거래량
     """
-    date = tb.Int32Col(pos=0)
+    date = tb.Int64Col(pos=0)
     open = tb.Float64Col(pos=1)
     high = tb.Float64Col(pos=2)
     low = tb.Float64Col(pos=3)
     close = tb.Float64Col(pos=4)
     volume = tb.UInt64Col(pos=5)
 
+class Minute(tb.IsDescription):
+    """
+    Minute data model
+    Table structure:
+        - date : POSIX 시간(초)을 Integer 형태로 저장
+        - high: 고가
+        - low: 저가
+        - volume: 거래량
+    """
+    date = tb.Int64Col(pos=0)
+    high = tb.Float64Col(pos=1)
+    low = tb.Float64Col(pos=2)
+    volume = tb.UInt64Col(pos=3)
+
 
 class Products(dict):
     """
     전체 상품정보를 보관하는 dictionary 클래스
     """
-    # RAW OHLC DB FILE
-    RAWDBFILE = os.path.join(BASE_DIR, "rawohlc.db")
-    OHLCFILE = os.path.join(BASE_DIR, "futures.db")
+    # DB FILES PATH
+    RAWOHLCFILE = os.path.join(BASE_DIR, "rawohlc.db") #종목별 일봉데이터
+    RAWMINUTEFILE = os.path.join(BASE_DIR, "rawminute.db") #종목별 분데이터
+    OHLCFILE = os.path.join(BASE_DIR, "futures.db") #상품별 연결선물 OHLC 데이터
+    MINUTEFILE = os.path.join(BASE_DIR, "minute.db") #상품별 연결분데이터
 
     # 일봉 데이터 수집 제외 상품목록
     EXCEPTIONS = [
@@ -90,18 +106,17 @@ class Products(dict):
         #종목명을 반환
         return self.get_contract(symbol).name
     
-    def symbols(self):
+    def symbols(self, stype):
         #전체 종목코드리스트를 반환
-        return [symbol for product in self.values() for symbol in product.tradables]
-
-    def ohlc_symbols(self):
-        #OHLC 저장용 종목 코드리스트를 반환
-        symbols = []
-        for name, product in self.items():
-            if name not in Products.EXCEPTIONS:
-                symbols += product.tradables
-
-        return symbols
+        if stype == 'all':
+            return [symbol for product in self.values() for symbol in product.tradables]
+        #DB 저장용 종목 코드리스트를 반환
+        elif stype == 'db':
+            symbols = []
+            for name, product in self.items():
+                if name not in Products.EXCEPTIONS:
+                    symbols += product.tradables
+            return symbols
 
     def contracts(self):
         #전체 종목 인스턴스를 반환하는 제너레이터
@@ -238,33 +253,7 @@ class Products(dict):
             db.flush()
         db.close()
 
-    
-    
-    def get_ohlc(self, symbol):
-        pass
 
-    def startdate(self, symbol):
-        # db에 저장된 마지막 날짜의 다음날짜를 YYYYMMdd 형식으로 반환
-        # 마지막 날짜가 0이면 어제날짜 반환
-        lastdate = self.lastdate_in_db(symbol)
-        if lastdate:
-            startdate = lastdate.astype('M8[D]') + np.timedelta64(1,'D')
-        else: 
-            startdate = self.enddate(symbol)
-        return  ''.join(str(startdate).split('-'))
-    
-    def enddate(self, symbol):
-        # ohlc 업데이트 요청 최종날짜
-        # 현지 거래 종료일 - 1
-        endday = self.get_contract(symbol).ovsendday - timedelta(1)
-        return endday.strftime('%Y%m%d')
-    
-    def lastdate_in_db(self, symbol):
-        # db에 저장된 마지막 날짜의 posix time을 반환
-        db = tb.open_file(Products.RAWDBFILE, mode='a')
-        lastdate = max(db.root[symbol].cols.date, default=np.int32(0))
-        db.close()
-        return lastdate
 
     @staticmethod
     def get_market(symbol):
@@ -278,6 +267,7 @@ class Product(OrderedDict):
     """
     def __init__(self):
         self.tradables = []
+        
 
     #ordereddict 를 base class로 작성하시 init variable의 pickling이 안되서
     #아래와 같이 reduce method를 반드시 override해야함
@@ -298,8 +288,8 @@ class Product(OrderedDict):
         self.exchange = info['exchange']
         self.market = Products.get_market(self.symbol)#info['market']
         self.notation = info['notation']
-        self.unit = info['unit']
-        self.uprice = info['price_per_unit']
+        self.tickunit = float(info['unit'])
+        self.tickprice = float(info['price_per_unit'])
         self.rgltfactor = info['rgltfactor']
         self.opentime = info['opentime']
         self.closetime = info['closetime']
@@ -326,8 +316,8 @@ class Product(OrderedDict):
             'exchange': self.exchange,
             'market': self.market,
             'notation': self.notation,
-            'unit': self.unit,
-            'price per unit': self.uprice,
+            'tickunit': self.tickunit,
+            'tickprice': self.tickprice,
             'regulator factor': self.rgltfactor,
             'opening time': self.opentime.strftime('%H:%M:%S'),
             'closing time': self.closetime.strftime('%H:%M:%S'),
@@ -361,7 +351,7 @@ class Product(OrderedDict):
         return(f'{self.name}[{self.symbol}]')
 
     def __setattr__(self, name, value):
-        if name in ['tradables', 'lastupdate', 'rawdbfile']:
+        if name in ['tradables', 'lastupdate']:
             pass
         elif not hasattr(self, name):
             logger.info(f"{value} has assigned to {name}.")
@@ -375,12 +365,22 @@ class Contract:
     해외선물 월물별 세부정보
     """
     def __init__(self, symbol, name):
-        # 신규 db table 생성
+        
+        # 신규 ohlc db table 생성
         filters = tb.Filters(complib='blosc', complevel=9)
-        db = tb.open_file(Products.RAWDBFILE, mode='a', filters=filters)
+        db = tb.open_file(Products.RAWOHLCFILE, mode='a', filters=filters)
         tbl = db.create_table('/', symbol, OHLC, name)
         tbl.cols.date.create_csindex()
         db.close()
+
+        # 신규 minute db table 생성
+        db = tb.open_file(Products.RAWMINUTEFILE, mode='a', filters=filters)
+        tbl = db.create_table('/', symbol, Minute, name)
+        tbl.cols.date.create_csindex()
+        db.close()
+
+        #logger.info(f"New contract {name}[{symbol}] has created")
+
 
     def __setattr__(self, name, value):
         if name == 'lastupdate':
@@ -433,11 +433,11 @@ class Contract:
         }
 
     def update_ohlc(self, data):
-        #종목별 OHLC 데이터 업데이트
+        #종목별 일봉 OHLC 데이터 업데이트
         if not data: 
             return logger.info("Nothing to update")
             
-        db = tb.open_file(Products.RAWDBFILE, mode='a')
+        db = tb.open_file(Products.RAWOHLCFILE, mode='a')
         table = db.root[self.symbol]
         for datum in data:
             sdate, open, high, low, close, volume = datum
@@ -465,17 +465,80 @@ class Contract:
             #이제 업데이트 진행
             else:
                 table.append([(ndate, open, high, low, close, volume)])
-        db.flush()
+        table.flush()
         db.close()
 
-    def ohlc(self):
-        #ohlc data 반환
-        db = tb.open_file(Products.RAWDBFILE, mode='r')
+    def ohlc(self, period='minute'):
+        """pandas DataFrame 형식의 ohlc data 반환
+           period : '30min' or 'day'
+        """ 
+        db = tb.open_file(Products.RAWMINUTEFILE, mode='r')
         data = db.root[self.symbol].read_sorted(sortby='date')
         db.close()
-        return data
-        
+        df = pd.DataFrame(data[['open','high','low','close','volume']], index=data['date'].astype('M8[s]'))
+        if period == 'minute':
+            return df
+        elif period == 'day':
+            df= df.groupby(pd.Grouper(freq='24H',closed='left', label='left', base=8)).\
+                   agg({'open':'first', 'high':'max', 'low':'min', 'close':'last', 'volume': 'sum'}).dropna()
+            df.index = df.index.values.astype('M8[ns]').astype('M8[D]')
+            return df
+    def update_minute(self, data):
+        """ 분데이터 업데이트 """
+        if not data: 
+            return logger.info("Nothing to update")
+            
+        lastdate = self.lastdate_in_db('Minute')
+        db = tb.open_file(Products.RAWMINUTEFILE, mode='a')
+        table = db.root[self.symbol]
+        for datum in data:
+            ndate, open, high, low, close, volume = datum
+            ohlc = list(map(float, [open,high,low,close]))
+            sdate = ndate.astype('M8[s]')
+            
+            #마지막 데이터보다 앞선 데이터 버림
+            if ndate <= lastdate: #table.read_where('date>=ndate').size:
+                continue
 
+            #중복 데이터 버림
+            elif table.read_where('date==ndate').size:
+                continue
+            
+            #거래량이 1미만이면 버림
+            elif int(volume) < 1:
+                logger.warning(f"{self.name} has a data with volume: {volume} at {sdate}")
+
+            #잘못된 데이터 버림
+            elif max(ohlc) != float(high) or min(ohlc) != float(low):
+                logger.warning(f"{self.name} has a wrong data {datum}")
+            
+            
+            #이제 업데이트 진행
+            else:
+                table.append([(ndate, open, high, low, close, volume)])
+                table.flush()
+        db.close()
+    
+    def startday(self):
+        # db에 저장된 마지막 날짜의 다음날짜를 YYYYMMdd 형식으로 반환
+        # 마지막 날짜가 0이면 일주일 전 날짜 반환
+        lastdate = self.lastdate_in_db('OHLC')
+        startdate = lastdate.astype('M8[D]') + np.timedelta64(1,'D')
+        return ''.join(str(startdate).split('-')) 
+    
+    def lastdate_in_db(self, dbname):
+        # db에 저장된 마지막 날짜의 posix time을 반환
+        if dbname == 'OHLC':
+            dbfile = Products.RAWOHLCFILE
+            default = np.datetime64(self.ovsendday - timedelta(7)).astype('M8[D]').astype('int32')
+        elif dbname == 'Minute':
+            dbfile = Products.RAWMINUTEFILE
+            default = np.datetime64(self.ovsendday - timedelta(7)).astype('M8[s]').astype('int64')
+        
+        db = tb.open_file(dbfile, mode='r')
+        lastdate = max(db.root[self.symbol].cols.date, default=default)
+        db.close()
+        return lastdate
 
     def __str__(self):
         return self.name

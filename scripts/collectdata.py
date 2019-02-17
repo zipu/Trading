@@ -6,6 +6,7 @@ import os
 import logging, time, json, pickle, traceback
 from datetime import datetime, timedelta
 from shutil import copyfile
+import numpy as np
 
 from eBest.xingAPI import Session, XAEvents, Query, Real
 from eBest.meta import Helper
@@ -65,16 +66,21 @@ class CollectData:
 
         elif stepno == 2: # 종목별 정보 요청
             self.logger.info("STEP 2: Update contracts information")
-            self.contracts = self.products.symbols()
+            self.contracts = self.products.symbols('all')
             self.request_contractsinfo()
             
         elif stepno == 3: # raw ohlc
             self.logger.info("STEP 3: Update Daily OHLC")
-            self.contracts = self.products.ohlc_symbols()
+            self.contracts = self.products.symbols('db')
             self.request_ohlc()
 
-        elif stepno == 4: # save
-            self.logger.info("STEP 4: Save the objects")
+        elif stepno == 4: # minute data
+            self.logger.info("STEP 4: Update Minute Data")
+            self.contracts = self.products.symbols('db')
+            self.request_minute()
+        
+        elif stepno == 5: # save
+            self.logger.info("STEP 5: Save the objects")
             self.save()
 
     # 10분당 총 tr 200회 제한 및 tr 당 조회제한 확인
@@ -115,7 +121,7 @@ class CollectData:
     def on_login(self, errcode, msg):
         self.logger.info("(%s): %s", errcode, msg)
         if errcode=='0000':
-            self.next_step(1)
+            self.next_step(4)
             
     #Step 1: 전체상품정보 요청
     def request_productsinfo(self):
@@ -179,13 +185,13 @@ class CollectData:
     #Step 2: 종목(월물)별 상품정보 요청
     def request_contractsinfo(self, symbol=None):
         symbol = symbol or self.contracts.pop(0)
+        self.query = Query('o3105')
         
         # 조회 TR 횟수 확인     
         cnt, limit, proctime = self.check_req_limit('o3105')
         self.logger.info(f"({symbol}) Updating information (CNT:{len(self.contracts)}, TR: {cnt}/{limit}, TIME: {proctime} sec)")
 
         # 조회 요청
-        self.query = Query('o3105')
         fields = {'symbol': symbol}
         errcode = self.query.request(self.query.tr['inblock'], fields)
         if int(errcode) < 0:
@@ -238,7 +244,8 @@ class CollectData:
     #STEP 3: 종목(월물)별 OHLC 데이터 업데이트
     def request_ohlc(self, symbol=None):
         symbol = symbol or self.contracts.pop(0)
-        name = self.products.get_name(symbol)
+        contract = self.products.get_contract(symbol)
+        name = contract.name #self.products.get_name(symbol)
         
         #조회 TR 횟수 확인
         cnt, limit, proctime = self.check_req_limit('o3108')
@@ -246,8 +253,8 @@ class CollectData:
 
         #TR 조회요청
         self.query = Query('o3108')
-        startdate = self.products.startdate(symbol) #시작일
-        enddate = self.products.enddate(symbol) #종료일
+        startdate = contract.startday()#self.products.ohlc_startdate(symbol) #시작일
+        enddate = (contract.ovsendday - timedelta(1)).strftime('%Y%m%d') # 데이터 마지막 수신일
         fields = dict(
             shcode=symbol,
             gubun=0, #일별
@@ -286,8 +293,78 @@ class CollectData:
         if self.contracts: 
             self.request_ohlc()
         else:
-            self.logger.info("OHLC Data updated")
+            self.logger.info("Daily OHLC Data updated")
             self.next_step(4)
+        
+    #STEP 4: 종목(월물)별 분데이터 업데이트
+    def request_minute(self, symbol=None, cts_date='', cts_time='', bnext=False):
+        symbol = symbol or self.contracts.pop(0)
+        name = self.products.get_name(symbol)
+        
+        # 연속조회 아닌 신규조회의 경우
+        if not bnext: self.data = [] #분데이터 저장할 리스트
+        
+        #조회 TR 횟수 확인
+        self.query = Query('o3103')
+        cnt, limit, proctime = self.check_req_limit('o3103')
+        self.logger.info(f"({name}) updating Minute Data on {symbol} (Cnt:{len(self.contracts)}, TR:{cnt}/{limit}, TIME: {proctime} sec)")
+
+        #TR 조회요청
+        fields = dict(
+            shcode=symbol,
+            ncnt=30, #분단위
+            readcnt=500,
+            cts_date=cts_date,
+            cts_time=cts_date,
+        )
+
+        errcode = self.query.request(self.query.tr['inblock'], fields, bnext)
+        if int(errcode) < 0:
+            self.parse_err_code('o3103', errcode)
+            if int(errcode) == -34:
+                self.request_minute(symbol)
+
+    @XAEvents.on('OnReceiveData', code='o3103')
+    def on_request_minute(self, code):
+        outblock = self.query.tr['outblock']
+        outblock1 = self.query.tr['outblock1']
+        
+        symbol = self.query.get_field_data(outblock, 'shcode', 0) #종목코드
+        cts_date = self.query.get_field_data(outblock, 'cts_date', 0) #연속일자
+        cts_time = self.query.get_field_data(outblock, 'cts_time', 0) #연속시간
+        timediff = int(self.query.get_field_data(outblock, 'timediff', 0)) * (-1) #시차
+
+        contract = self.products.get_contract(symbol)
+        lastdate = contract.lastdate_in_db('Minute')#분데이터 최신날짜
+        cnt = self.query.get_block_count(outblock1)
+        for i in range(cnt):
+            date = self.query.get_field_data(outblock1, 'date', i) #날짜
+            time =  self.query.get_field_data(outblock1, 'time', i) #시간
+            open = self.query.get_field_data(outblock1, 'open', i) #시가
+            high = self.query.get_field_data(outblock1, 'high', i) #고가
+            low = self.query.get_field_data(outblock1, 'low', i) #저가
+            close = self.query.get_field_data(outblock1, 'close', i) #종가
+            volume = self.query.get_field_data(outblock1, 'volume', i) #거래량
+
+            ndate = (np.datetime64(datetime.strptime(date+time, '%Y%m%d%H%M%S'))\
+                    + np.timedelta64(timediff, 'h')).astype('M8[s]').astype('int64')
+            
+            self.data.append((ndate,open, high, low, close, volume))
+        
+        # db에 저장된 데이터까지 도달하지 못했으면 연속조회
+        # 도달했으면 db 업데이트 후 다음종목 진행
+        if cts_date == '00000000' or ndate <= lastdate:
+            contract.update_minute(self.data[1:])
+            if self.contracts:
+                self.request_minute()
+            else:
+                self.logger.info("Minute Data update completed")
+                self.next_step(5)
+            
+        else: 
+            self.request_minute(symbol, cts_date=cts_date, cts_time=cts_time, bnext=True)
+        
+            
         
         
     def save(self):
@@ -302,12 +379,14 @@ class CollectData:
             pickle.dump(self.products, f, protocol=pickle.HIGHEST_PROTOCOL)
 
         #db 백업
-        dst = os.path.join(BASE_DIR, 'rawohlcs', f'rawohlc_{datetime.now().strftime("%Y%m%d%H%M")}.db')
-        copyfile(Products.RAWDBFILE, dst)
+        dst = os.path.join(BASE_DIR, 'rawohlc', f'rawohlc_{datetime.now().strftime("%Y%m%d%H%M")}.db')
+        copyfile(Products.RAWOHLCFILE, dst)
+        dst = os.path.join(BASE_DIR, 'rawminute', f'rawminute_{datetime.now().strftime("%Y%m%d%H%M")}.db')
+        copyfile(Products.RAWMINUTEFILE, dst)
 
         #연결선물 업데이트
-        self.products.create_ohlc()
-        self.logger.info("Continuous futures update completed")
+        #self.products.create_ohlc()
+        #self.logger.info("Continuous futures update completed")
 
         self.logger.info("All Product Information Properly Saved")
         self.flag = True

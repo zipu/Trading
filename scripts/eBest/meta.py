@@ -28,6 +28,15 @@ tr = {
         'occurs': True,
         'rate': 1
     },
+    #해외선물 분봉조회
+    'o3103':{
+        'code': 'o3103',
+        'inblock': 'o3103InBlock',
+        'outblock': 'o3103OutBlock',
+        'outblock1': 'o3103OutBlock1',
+        'occurs': True,
+        'rate': 1
+    }
 }
 
 
