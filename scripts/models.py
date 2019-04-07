@@ -201,6 +201,8 @@ class Products(dict):
             #end = np.datetime64(product.lastupdate).astype('M8[s]').astype('int64')
             
             actuals = [c for c in product.values() if c.lastdate_in_db() >= start]
+            if not actuals:
+                continue
             end = max([c.lastdate_in_db() for c in actuals])
             volumes = pd.concat([c.ohlc(start=start)['volume'] for c in actuals], axis=1).sum(axis=1)
             ohlc1 = active.rawdata(start=start) #액티브월물 데이터
