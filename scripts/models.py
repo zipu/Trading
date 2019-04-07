@@ -1,9 +1,14 @@
-import os, logging, traceback, weakref
+import sys
+sys.path.append('..')
+import os, logging, traceback, glob
 from collections import OrderedDict  
 from datetime import datetime, timedelta
+from tools import ohlc_chart
+import h5py
 import tables as tb
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 logger = logging.getLogger('Models')
 logger.setLevel(logging.DEBUG)
@@ -25,22 +30,15 @@ class OHLC(tb.IsDescription):
     high = tb.Float64Col(pos=2)
     low = tb.Float64Col(pos=3)
     close = tb.Float64Col(pos=4)
-    volume = tb.UInt64Col(pos=5)
+    volume = tb.Int64Col(pos=5)
 
-class Minute(tb.IsDescription):
+class ConnectDate(tb.IsDescription):
     """
-    Minute data model
-    Table structure:
-        - date : POSIX 시간(초)을 Integer 형태로 저장
-        - high: 고가
-        - low: 저가
-        - volume: 거래량
+    액티브 월물 변경일 저장
     """
     date = tb.Int64Col(pos=0)
-    high = tb.Float64Col(pos=1)
-    low = tb.Float64Col(pos=2)
-    volume = tb.UInt64Col(pos=3)
-
+    name = tb.StringCol(16, pos=1)
+    diff = tb.Float64Col(pos=2)
 
 class Products(dict):
     """
@@ -51,8 +49,9 @@ class Products(dict):
     RAWMINUTEFILE = os.path.join(BASE_DIR, "rawminute.db") #종목별 분데이터
     OHLCFILE = os.path.join(BASE_DIR, "futures.db") #상품별 연결선물 OHLC 데이터
     MINUTEFILE = os.path.join(BASE_DIR, "minute.db") #상품별 연결분데이터
+    HISTORICALFILE = os.path.join(BASE_DIR, 'historical_ohlc.h5py') #과거 연결선물데이터
 
-    # 일봉 데이터 수집 제외 상품목록
+    # 데이터 수집 제외 상품목록
     EXCEPTIONS = [
         'E7', 'FDXM', 'HMCE', 'HMH', 'J7', 'M6A', 'M6B', 'M6E','MCD',
         'MGC', 'MJY', 'QC', 'QG', 'QM', 'SNS', 'XC', 'XK', 'XW', 'YG',
@@ -96,7 +95,6 @@ class Products(dict):
         'HSI': ('HMH'),
     }
 
-
     def __setitem__(self, key, value):
         if hasattr(self, key) and self.get(key) != value:
             logger.warning(f"The product {value} has changed from {self.get(key)} to {value}")
@@ -118,7 +116,7 @@ class Products(dict):
                     symbols += product.tradables
             return symbols
 
-    def contracts(self):
+    def iter_contracts(self):
         #전체 종목 인스턴스를 반환하는 제너레이터
         for product in self.values():
             for contract in product.values():
@@ -132,40 +130,41 @@ class Products(dict):
         else:
             return c[0] if c else None
 
-    def create_ohlc(self):
+    def create_continuous_contracts(self):
         """ 
-        raw ohlc 로부터 연결선물 데이터 생성
+        rawminute 로부터 연결선물 데이터 생성
         파일명: Products.OHLCFILE
         """
-        def compensate_db(ohlc1, ohlc2, date, tbl, decimal_len):
+        def compensate_db(ohlc1, ohlc2, date, tbl, product):
             """ 
             db의 가격보정 함수
-            최근 3거래일의 평균가격만큼 보정해줌
+            최근 48거래 단위 동안의 평균가격만큼 보정해줌
             ohlc1: 액티브 월물 데이터
             ohlc2: 차월물 데이터
             date: 보정날짜
             tbl: table instance
             decimal_len: 상품의 소숫점 자릿수
             """
-            d = date
-            prices1=[]
-            prices2=[]
-            cnt = 0
-            while cnt < 2:
-                data1 = ohlc1[ohlc1['date']==d]
-                data2 = ohlc2[ohlc2['date']==d]
-                if data1.size != 0 and data2.size != 0:
-                    prices1.append(data1[0].tolist()[slice(1,5)])
-                    prices2.append(data2[0].tolist()[slice(1,5)])
-                    cnt += 1
-                d -= 1
-            diff = np.round(np.average(prices2) - np.average(prices1), decimal_len)
+            decimal_len = product.decimal_len
+            tickunit = product.tickunit
+            sdate = ohlc1[ohlc1['date']<=mdate]['date'][-48:][0] #시작일
+            price1 = ohlc1[(ohlc1['date'] <= date) & (ohlc1['date'] >= sdate)]\
+                      [['open','high','low','close']].copy().view(np.float64).mean()  
+            
+            price2 = ohlc2[(ohlc2['date'] <= date) & (ohlc2['date'] >= sdate)]\
+                      [['open','high','low','close']].copy().view(np.float64).mean()
+            
+            price1 = int(price1/tickunit) * tickunit
+            price2 = int(price2/tickunit) * tickunit
+
+            diff = np.round(price2 - price1, decimal_len)
             tbl.cols.open[:] += diff
             tbl.cols.low[:] += diff
             tbl.cols.high[:] += diff
             tbl.cols.close[:] += diff
-            #print(f"{tbl.title}[{tbl.name}] Data has been changed up by {diff} at {np.int32(date).astype('M8[D]')}")
-            logger.info(f"{tbl.title}[{tbl.name}] Data has been changed up by {diff} at {np.int32(date).astype('M8[D]')}")
+            #print(f"{tbl.title}[{tbl.name}] Data has been changed up by {diff} at {np.int32(date).astype('M8[s]')}")
+            logger.info(f"{tbl.title}[{tbl.name}] Data has been changed up by {diff} at {np.int32(date).astype('M8[s]')}")
+            return diff
 
         filters = tb.Filters(complib='blosc', complevel=9)
         db = tb.open_file(Products.OHLCFILE, mode='a', filers=filters)
@@ -175,84 +174,113 @@ class Products(dict):
                 #print(f"The product {product.name} is excepted for ohlc data")
                 logger.info(f"The product {product.name} is excepted for ohlc data")
                 continue
-        
             #print(f"Updating Continuous Futures Data on {product.name}[{product.symbol}]")
             logger.info(f"Updating Continuous Futures Data on {product.name}[{product.symbol}]")
 
+            contracts = iter(product.values()) # 월물 iterator
+            timeunit = 30 * 60 #시간단위 30분
             
             # table 없을시 생성, attrs에 active 월물의 symbol 저장
             if not hasattr(db.root, product.symbol):
                 tbl = db.create_table('/', product.symbol, OHLC, product.name)
+                aux = db.create_table('/', product.symbol+'_AUX', ConnectDate, product.name) #월물변경일
                 tbl.cols.date.create_csindex()
-                active = next(iter(product.values()))
-                tbl.attrs.active = active.symbol
-                start = min(active.ohlc()['date'])
+                aux.cols.date.create_csindex()
+                
+                active = next(contracts)
+                following = next(contracts, None)
+                tbl.attrs['active'] = active.symbol
+                start = min(active.rawdata()['date'])
             else:
                 tbl = db.root[product.symbol]
-                active = product[tbl.attrs.active]
-                start = max(tbl.cols.date) + 1 #마지막 데이터 다음날부터
-            end = np.datetime64(product.lastupdate).astype('M8[D]').astype('int32')
+                aux = db.root[product.symbol+'_AUX']
+                active = product[tbl.attrs['active']]
+                following =  next(contracts, None) #차월물
+                start = max(tbl.cols.date) + timeunit #마지막 데이터부터
             
-            contracts = iter(product.values()) # 월물 iterator
-            while next(contracts).symbol != tbl.attrs.active: pass
-            following = next(contracts, None) #차월물
-        
-            ohlc1 = active.ohlc() #액티브월물 데이터
-            ohlc2 = following.ohlc() if following else None #차월물 데이터
-            date = start
-        
-            while date <= end:
+            #end = np.datetime64(product.lastupdate).astype('M8[s]').astype('int64')
+            
+            actuals = [c for c in product.values() if c.lastdate_in_db() >= start]
+            end = max([c.lastdate_in_db() for c in actuals])
+            volumes = pd.concat([c.ohlc(start=start)['volume'] for c in actuals], axis=1).sum(axis=1)
+            ohlc1 = active.rawdata(start=start) #액티브월물 데이터
+            ohlc2 = following.rawdata(start=start) if following else None #차월물 데이터
+            mdate = start
+            while mdate <= end:
                 # 해달날짜 데이터가 이미 있으면 에러
-                mdate = date
                 if tbl.read_where('date>=mdate').size:
-                    raise ValueError(f"{product.name} has a duplicated data at {np.int32(date).astype('M8[D]')}")
+                    raise ValueError(f"{product.name} has a duplicated data at {mdate.astype('M8[s]')}")
             
             
-                # 해당날짜가 액티브월물의 최종거래일 이후면 액티브 월물 변경후 다시 진행
-                if date >= np.datetime64(active.final_tradeday).astype('M8[D]').astype('int32'):
-                    compensate_db(ohlc1, ohlc2, date, tbl, product.decimal_len) #가격보정
+                #1. 해당날짜가 액티브월물의 최종거래일 이후면 액티브 월물 변경후 다시 진행
+                if mdate > np.datetime64(active.final_tradeday).astype('M8[s]').astype('int64'):
+                    #차월물 데이터가 없으면 패스
+                    if ohlc2[ohlc2['date']==mdate].size == 0:
+                        mdate += timeunit
+                        continue
                     active = following
-                    tbl.attrs.active = active.symbol #db내의 액티브 월물 변경
+                    diff = compensate_db(ohlc1, ohlc2, mdate, tbl, product) #가격보정
+                    tbl.attrs['active'] = active.symbol #db내의 액티브 월물 변경
+                    aux.append([(mdate, active.symbol, diff)])
                     following = next(contracts, None)
-                    ohlc1 = active.ohlc()
-                    ohlc2 = following.ohlc() if following else None
+                    ohlc1 = active.rawdata(start=start) #액티브월물 데이터
+                    ohlc2 = following.rawdata(start=start) if following else None
                     continue
             
-                #2. 해당날짜의 데이터가 없으면 넘어감
-                if ohlc1[ohlc1['date']==date].size == 0:
-                    date += 1
+                #2. 해당날짜의 데이터가 없으면 패스
+                elif ohlc1[ohlc1['date']==mdate].size == 0:
+                    mdate += timeunit
                     continue
 
-                #3. 차월물 데이터가 없거나 이전데이터 갯수가 1개 이하면 액티브 월물 저장
-                if not following\
-                or ohlc1[ohlc1['date'] < date].size == 0\
-                or ohlc2[ohlc2['date']==date].size == 0\
-                or ohlc2[ohlc2['date'] < date].size == 0:
-                    tbl.append(ohlc1[ohlc1['date']==date])
-                    date += 1
+                #3. 차월물 데이터가 없거나 이전데이터 갯수가 1개 이하면 패스
+                elif not following\
+                or ohlc1[ohlc1['date'] < mdate].size == 0\
+                or ohlc2[ohlc2['date']==mdate].size == 0\
+                or ohlc2[ohlc2['date'] < mdate].size == 0:
+                    o,h,l,c = ohlc1[ohlc1['date']==mdate][['open','high','low','close']][0]
+                    v = volumes[volumes.index==mdate.astype('M8[s]')][0]
+                    tbl.append([(mdate, o,h,l,c,v)])
+                    mdate += timeunit
                     continue
 
-                datum1 = ohlc1[ohlc1['date']==date] #액티브월물 당일 데이터
-                datum2 = ohlc2[ohlc2['date']==date] #차월물 당일 데이터
-            
-                #4. 차월물의 거래량이 2일연속 많으면 액티브 월물 변경
-                if datum1['volume'][0] < datum2['volume'][0]\
-                   and ohlc1[ohlc1['date']<date]['volume'][-1] < ohlc2[ohlc2['date']<date]['volume'][-1]:
-                    compensate_db(ohlc1, ohlc2, date, tbl, product.decimal_len)
-                    tbl.append(datum2)
+                # 최근 48 거래 단위 동안의 거래량
+                sdate = ohlc1[ohlc1['date']<=mdate]['date'][-48:][0] #시작일
+                vol1 = ohlc1[(ohlc1['date'] <= mdate) & (ohlc1['date'] >= sdate)]\
+                      ['volume'].sum()
+                vol2 = ohlc2[(ohlc2['date'] <= mdate) & (ohlc2['date'] >= sdate)]\
+                      ['volume'].sum()
+                
+                #4 차월물의 48시간 동안 누적 거래량이 더 많으면 액티브 변경
+                if vol1 < vol2:
+                    diff = compensate_db(ohlc1, ohlc2, mdate, tbl, product)
                     active = following
-                    tbl.attrs.active = active.symbol
                     following = next(contracts, None)
-                    ohlc1 = active.ohlc()
-                    ohlc2 = following.ohlc() if following else None
-
+                    tbl.attrs['active'] = active.symbol
+                    aux.append([(mdate, active.symbol, diff)])
+                    ohlc1 = active.rawdata(start=start)
+                    ohlc2 = following.rawdata(start=start) if following else None
+                    continue
+                
                 #5. 그 외에는 액티브 월물 저장
                 else:
-                    tbl.append(datum1)
-                date += 1
+                    o,h,l,c = ohlc1[ohlc1['date']==mdate][['open','high','low','close']][0]
+                    v = volumes[volumes.index==mdate.astype('M8[s]')][0]
+                    tbl.append([(mdate, o,h,l,c,v)])
+                    mdate += timeunit
             db.flush()
         db.close()
 
+
+    def historical_ohlcs(self):
+        """ 전체 종목의 과거 연결선물데이터를 반환"""
+        keys = [] #종목코드
+        values = [] #종목별 ohlc dataframe
+        for p in self.values():
+            ohlc = p.historical_ohlc()
+            if isinstance(ohlc, pd.DataFrame):
+                values.append(ohlc)
+                keys.append(p.symbol)
+        return pd.concat(values, keys=keys, axis=1)
 
 
     @staticmethod
@@ -260,7 +288,7 @@ class Products(dict):
         """ 상품이 속한 시장을 반환 """
         return [mk for mk, symbols in Products.MARKETS.items() if symbol in symbols][0]
 
-class Product(OrderedDict):
+class Product(dict):
     """
     해외선물 상품 정보
     dictionary class의  subclass 로써 각 월물 정보를 dict 형태로 저장
@@ -268,7 +296,16 @@ class Product(OrderedDict):
     def __init__(self):
         self.tradables = []
         
+    # 최종거래일 기준으로 정렬된 월물을 반환하기위해 override 하는 매소드
+    def keys(self):
+        keys = super(Product, self).keys()
+        return sorted(keys, key=lambda x: self[x].expiration)
 
+    def values(self):
+        return [self[p] for p in self.keys()]
+
+    def items(self):
+        return list(zip(self.keys(), self.values()))
     #ordereddict 를 base class로 작성하시 init variable의 pickling이 안되서
     #아래와 같이 reduce method를 반드시 override해야함
     #def __reduce__(self):
@@ -279,6 +316,8 @@ class Product(OrderedDict):
     #                None,
     #                state[4])
     #    return newstate
+
+
 
     def updateinfo(self, info):
         self.name = info['pname']
@@ -332,20 +371,47 @@ class Product(OrderedDict):
             'is exception': self.is_exception
         }
     
-    def ohlc(self):
-        """ 연결선물 데이터 리턴"""
-        db =  tb.open_file(Products.OHLCFILE, mode='r')
-        data = db.root[self.symbol].read_sorted('date')
+    def plot(self, period='minute', size=(10,6)):
+        """ 상품 데이터를 그래프로 나타냄"""
+        db = tb.open_file(Products.OHLCFILE, mode='r')
+        dates = db.root[self.symbol+'_AUX'].read_sorted(sortby='date')['date'].astype('M8[s]')
         db.close()
-        return data
-
-    def dataframe(self):
-        """ pandas dataframe 형식으로 연결선물데이터 리턴"""
-        data = self.ohlc()
-        return pd.DataFrame(data[['open','high','low','close','volume']], index=data['date'].astype('M8[D]'))
         
-        
+        fig = plt.figure(figsize=size)
+        ax = plt.gca()
+        ohlc_chart(ax, self.ohlc(period=period), period=period)
+        for date in dates:
+            plt.axvline(date, color='green')
+        fig.autofmt_xdate()
 
+  
+    def ohlc(self, period='minute', start=0):
+        """pandas DataFrame 형식의 ohlc data 반환
+           period : '30min' or 'day'
+           start: 시작일 (np.int64)
+        """ 
+        data = self.rawdata(start=start)
+        df = pd.DataFrame(data[['open','high','low','close','volume']], index=data['date'].astype('M8[s]'))
+        if period == 'minute':
+            return df
+        elif period == 'day':
+            df= df.groupby(pd.Grouper(freq='24H',closed='left', label='left', base=self.opentime.hour)).\
+                   agg({'open':'first', 'high':'max', 'low':'min', 'close':'last', 'volume': 'sum'}).dropna()
+            df.index = df.index.values.astype('M8[ns]').astype('M8[D]')
+            return df.sort_index()
+
+    def rawdata(self, start=0):
+        """ DB에 저장된 RAWMINUTE DATA return """
+        db = tb.open_file(Products.OHLCFILE, mode='r')
+        data = db.root[self.symbol].read_sorted(sortby='date')
+        db.close()
+        return data[data['date']>=start]
+
+    def get_active(self):
+        db = tb.open_file(Products.OHLCFILE, mode='r')
+        symbol = db.root[self.symbol].attrs['active']
+        db.close()
+        return(symbol)
 
     def __str__(self):
         return(f'{self.name}[{self.symbol}]')
@@ -359,6 +425,23 @@ class Product(OrderedDict):
             logger.info(f"{name} of {self.name} has changed from {getattr(self, name)} to {value}.")
         super(Product, self).__setattr__(name, value)
     
+
+    def historical_ohlc(self):
+        """ 과거 연결선물데이터 호출
+            연결방식: Roll on last trading day
+            기간: ~  2017.12.31 까지
+        """
+        db = h5py.File(Products.HISTORICALFILE, 'r')
+        if self.symbol in db.keys():
+            data = db[self.symbol][:]
+            df = pd.DataFrame(data[:,[1,2,3,4,5,6]], 
+                              index=data[:,0].astype('M8[ns]'),
+                              columns=['open','high','low','close','volume','openint'])
+            db.close()
+            return df            
+
+        
+
 
 class Contract:
     """ 
@@ -375,7 +458,7 @@ class Contract:
 
         # 신규 minute db table 생성
         db = tb.open_file(Products.RAWMINUTEFILE, mode='a', filters=filters)
-        tbl = db.create_table('/', symbol, Minute, name)
+        tbl = db.create_table('/', symbol, OHLC, name)
         tbl.cols.date.create_csindex()
         db.close()
 
@@ -416,22 +499,29 @@ class Contract:
             'name': self.name,
             'symbol': self.symbol,
             'ecprice': self.ecprice,
-            'appl date': self.appldate.strftime('%Y-%m-%d'),
+            'appldate': self.appldate.strftime('%Y-%m-%d'),
             'eccode': self.eccode,
             'eminicode': self.eminicode,
             'year': self.year,
             'month': self.month,
             'seqno': self.seqno,
             'expiration': self.expiration.strftime('%Y-%m-%d'),
-            'final tradeday': self.final_tradeday.strftime('%Y-%m-%d'),
-            'open date': self.opendate.strftime('%Y-%m-%d %H:%M:%S'),
-            'close date': self.closedate.strftime('%Y-%m-%d %H:%M:%S'),
-            'ovs start day': self.ovsstrday.strftime('%Y-%m-%d %H:%M:%S'),
-            'ovs end day': self.ovsendday.strftime('%Y-%m-%d %H:%M:%S'),
-            'is tradable': self.is_tradable,
+            'final_tradeday': self.final_tradeday.strftime('%Y-%m-%d'),
+            'opendate': self.opendate.strftime('%Y-%m-%d %H:%M:%S'),
+            'closedate': self.closedate.strftime('%Y-%m-%d %H:%M:%S'),
+            'ovsstartday': self.ovsstrday.strftime('%Y-%m-%d %H:%M:%S'),
+            'ovsendday': self.ovsendday.strftime('%Y-%m-%d %H:%M:%S'),
+            'is_tradable': self.is_tradable,
             'lastupdate': self.lastupdate.strftime('%Y-%m-%d %H:%M:%S'),
         }
 
+    def rawdata(self, start=0):
+        """ DB에 저장된 RAWMINUTE DATA return """
+        db = tb.open_file(Products.RAWMINUTEFILE, mode='r')
+        data = db.root[self.symbol].read_sorted(sortby='date')
+        db.close()
+        return data[data['date']>=start]
+    
     def update_ohlc(self, data):
         #종목별 일봉 OHLC 데이터 업데이트
         if not data: 
@@ -468,27 +558,25 @@ class Contract:
         table.flush()
         db.close()
 
-    def ohlc(self, period='minute'):
+    def ohlc(self, period='minute', start=0):
         """pandas DataFrame 형식의 ohlc data 반환
            period : '30min' or 'day'
         """ 
-        db = tb.open_file(Products.RAWMINUTEFILE, mode='r')
-        data = db.root[self.symbol].read_sorted(sortby='date')
-        db.close()
+        data = self.rawdata(start=start)
         df = pd.DataFrame(data[['open','high','low','close','volume']], index=data['date'].astype('M8[s]'))
         if period == 'minute':
             return df
         elif period == 'day':
-            df= df.groupby(pd.Grouper(freq='24H',closed='left', label='left', base=8)).\
+            df= df.groupby(pd.Grouper(freq='24H',closed='left', label='left', base=self.opendate.hour)).\
                    agg({'open':'first', 'high':'max', 'low':'min', 'close':'last', 'volume': 'sum'}).dropna()
             df.index = df.index.values.astype('M8[ns]').astype('M8[D]')
-            return df
+            return df.sort_index()
     def update_minute(self, data):
         """ 분데이터 업데이트 """
         if not data: 
             return logger.info("Nothing to update")
             
-        lastdate = self.lastdate_in_db('Minute')
+        lastdate = self.lastdate_in_db()
         db = tb.open_file(Products.RAWMINUTEFILE, mode='a')
         table = db.root[self.symbol]
         for datum in data:
@@ -522,18 +610,14 @@ class Contract:
     def startday(self):
         # db에 저장된 마지막 날짜의 다음날짜를 YYYYMMdd 형식으로 반환
         # 마지막 날짜가 0이면 일주일 전 날짜 반환
-        lastdate = self.lastdate_in_db('OHLC')
+        lastdate = self.lastdate_in_db()
         startdate = lastdate.astype('M8[D]') + np.timedelta64(1,'D')
         return ''.join(str(startdate).split('-')) 
     
-    def lastdate_in_db(self, dbname):
+    def lastdate_in_db(self):
         # db에 저장된 마지막 날짜의 posix time을 반환
-        if dbname == 'OHLC':
-            dbfile = Products.RAWOHLCFILE
-            default = np.datetime64(self.ovsendday - timedelta(7)).astype('M8[D]').astype('int32')
-        elif dbname == 'Minute':
-            dbfile = Products.RAWMINUTEFILE
-            default = np.datetime64(self.ovsendday - timedelta(7)).astype('M8[s]').astype('int64')
+        dbfile = Products.RAWMINUTEFILE
+        default = np.datetime64(self.ovsendday - timedelta(7)).astype('M8[s]').astype('int64')
         
         db = tb.open_file(dbfile, mode='r')
         lastdate = max(db.root[self.symbol].cols.date, default=default)

@@ -20,38 +20,55 @@ def ohlc_chart(ax, quotes, period='day', linewidth=1, colors=['k','k'], backgrou
     colors: 상승, 하락봉 색깔
     background: 배경색
     """
+    from pandas.plotting import register_matplotlib_converters
+    register_matplotlib_converters()
+    
+    dates = quotes.index.values
+    o = quotes['open'].values
+    h = quotes['high'].values
+    l = quotes['low'].values
+    c = quotes['close'].values
+    
     if period == 'day':
-        cond = quotes['close']>= quotes['open']
+        #quotes['close']>= quotes['open']
+        
         #x축 세팅 bar와 bar사이의 간격 설정
-        if quotes.index.dtype == 'M8[ns]':
+        if dates.dtype == 'M8[ns]':
             offset = np.timedelta64(8, 'h')
-        elif quotes.index.dtype == 'int32':
+        elif dates.dtype == 'int64':
             offset = 0.3
         
-        #상승bar drawing
-        for i, data in enumerate(iter([quotes[cond], quotes[~cond]])):
-            dates = data.index
-            ax.vlines(dates, data['low'], data['high'], linewidth=linewidth, color=colors[i])
-            ax.hlines(data['open'], dates-offset, dates, linewidth=linewidth, color=colors[i])
-            ax.hlines(data['close'], dates, dates+offset, linewidth=linewidth, color=colors[i])
+        if colors[0] == colors[1]:
+            ax.vlines(dates, l, h, linewidth=linewidth, color=colors[0])
+            ax.hlines(o, dates-offset, dates, linewidth=linewidth, color=colors[0])
+            ax.hlines(c, dates, dates+offset, linewidth=linewidth, color=colors[0])
+    
+        else:
+            cond =  c >= o
+            #상승bar drawing
+            for i, idx in enumerate(iter([cond, ~cond])):
+                #dates = data.index.values
+                ax.vlines(dates[idx], l[idx], h[idx], linewidth=linewidth, color=colors[i])
+                ax.hlines(o[idx], dates[idx]-offset, dates[idx], linewidth=linewidth, color=colors[i])
+                ax.hlines(c[idx], dates[idx], dates[idx]+offset, linewidth=linewidth, color=colors[i])
     
     elif period == 'minute':
         #drawing bars
-        dates = quotes.index
-        ax.vlines(dates, quotes['low'], quotes['high'], linewidth=linewidth, color='k')
+        #dates = quotes.index.values
+        ax.vlines(dates, l, h, linewidth=linewidth, color='k')
 
     #style
     ax.grid(linestyle='--')
     ax.set_facecolor(background)
     ax.yaxis.tick_right()
-    ax.xaxis.set_major_locator(mdates.MonthLocator())
-    ax.xaxis.set_minor_locator(mdates.DayLocator())
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
-    ax.xaxis.set_minor_formatter(mdates.DateFormatter('%d'))
+    #ax.xaxis.set_major_locator(mdates.MonthLocator())
+    #ax.xaxis.set_minor_locator(mdates.DayLocator())
+    #ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+    #ax.xaxis.set_minor_formatter(mdates.DateFormatter('%d'))
     return ax
 
 
-def view(data, period='day', size=(10,6), colors=['k','k']):
+def view(data, period='minute', size=(10,6), colors=['k','k']):
     """
     datetime index의 ohlc dataframe 인풋
     """

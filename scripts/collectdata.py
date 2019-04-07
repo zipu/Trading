@@ -69,7 +69,7 @@ class CollectData:
             self.contracts = self.products.symbols('all')
             self.request_contractsinfo()
             
-        elif stepno == 3: # raw ohlc
+        elif stepno == 3: # raw ohlc ---> minute data 로 대체함 (Deprecated)
             self.logger.info("STEP 3: Update Daily OHLC")
             self.contracts = self.products.symbols('db')
             self.request_ohlc()
@@ -121,7 +121,7 @@ class CollectData:
     def on_login(self, errcode, msg):
         self.logger.info("(%s): %s", errcode, msg)
         if errcode=='0000':
-            self.next_step(4)
+            self.next_step(1)
             
     #Step 1: 전체상품정보 요청
     def request_productsinfo(self):
@@ -239,9 +239,9 @@ class CollectData:
             self.request_contractsinfo()
         else:
             self.logger.info("Contract information updated")
-            self.next_step(3)        
+            self.next_step(4)        
 
-    #STEP 3: 종목(월물)별 OHLC 데이터 업데이트
+    #STEP 3: 종목(월물)별 OHLC 데이터 업데이트 (deprecated!!!)
     def request_ohlc(self, symbol=None):
         symbol = symbol or self.contracts.pop(0)
         contract = self.products.get_contract(symbol)
@@ -335,7 +335,7 @@ class CollectData:
         timediff = int(self.query.get_field_data(outblock, 'timediff', 0)) * (-1) #시차
 
         contract = self.products.get_contract(symbol)
-        lastdate = contract.lastdate_in_db('Minute')#분데이터 최신날짜
+        lastdate = contract.lastdate_in_db()#분데이터 최신날짜
         cnt = self.query.get_block_count(outblock1)
         for i in range(cnt):
             date = self.query.get_field_data(outblock1, 'date', i) #날짜
@@ -354,7 +354,7 @@ class CollectData:
         # db에 저장된 데이터까지 도달하지 못했으면 연속조회
         # 도달했으면 db 업데이트 후 다음종목 진행
         if cts_date == '00000000' or ndate <= lastdate:
-            contract.update_minute(self.data[1:])
+            contract.update_minute(self.data[1:]) #첫번째 데이터는 현재 진행중이라 버림
             if self.contracts:
                 self.request_minute()
             else:
@@ -379,14 +379,14 @@ class CollectData:
             pickle.dump(self.products, f, protocol=pickle.HIGHEST_PROTOCOL)
 
         #db 백업
-        dst = os.path.join(BASE_DIR, 'rawohlc', f'rawohlc_{datetime.now().strftime("%Y%m%d%H%M")}.db')
-        copyfile(Products.RAWOHLCFILE, dst)
+        #dst = os.path.join(BASE_DIR, 'rawohlc', f'rawohlc_{datetime.now().strftime("%Y%m%d%H%M")}.db')
+        #copyfile(Products.RAWOHLCFILE, dst)
         dst = os.path.join(BASE_DIR, 'rawminute', f'rawminute_{datetime.now().strftime("%Y%m%d%H%M")}.db')
         copyfile(Products.RAWMINUTEFILE, dst)
 
         #연결선물 업데이트
-        #self.products.create_ohlc()
-        #self.logger.info("Continuous futures update completed")
+        self.products.create_continuous_contracts()
+        self.logger.info("Continuous futures update completed")
 
         self.logger.info("All Product Information Properly Saved")
         self.flag = True
