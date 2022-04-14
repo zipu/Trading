@@ -1,5 +1,5 @@
 *.pyc
 */*/__pycache__/
 */__pycache__/
-Data/
+Data/kibot/
 XingAPI/ebest/Res/

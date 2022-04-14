@@ -1,0 +1,81 @@
+symbol,globex,ebest,kibot,name,sector,exchange,tickunit,tickvalue,margin,currency,tradable,number_system,months
+AD,6A,AD,AD,CME Australian Dollar AUD,currency,CME,0.00005,5,1815,USD,1,10,HMUZ
+AL,,,,SHFE Aluminium,metal,SHFE,,,,,0,,FHJKMNQUVXZ
+ATW,,,,ICE Rotterdam Coal,petroleum,ICE,,,,,0,,FGHJKMNQUVXZ
+B,,,,ICE Brent Crude Oil,petroleum,ICE,,,,,0,,FGHJKMNQUVXZ
+BO,ZL,ZL,BO,CBOT Soybean Oil,grain,CME,0.01,6,3080,USD,1,10,FHKNQUVZ
+BP,B6,BP,BP,CME British Pound GBP,currency,CME,0.0001,6,2365,USD,1,10,HMUZ
+C,ZC,ZC,C,CBOT Corn,grain,CME,0.25,12,2915,USD,1,8,HKNUZ
+C,,,,LIFFE London Cocoa,tropical,LIFFE,,,,,0,,HKNUZ
+CC,,CC,,ICE Cocoa,tropical,ICE,1,10,1900,USD,1,10,HKNUZ
+CD,D6,CD,CD,CME Canadian Dollar CAD,currency,CME,0.00005,5,1485,USD,1,10,HMUZ
+CL,CL,CL,CL,NYMEX WTI Crude Oil,petroleum,CME,0.01,10,10450,USD,1,10,FGHJKMNQUVXZ
+CT,,CT,,ICE Cotton,fiber,ICE,0.01,5,3500,USD,1,10,HKNVZ
+CU,,,,SHFE Copper,metal,SHFE,,,,,0,,FHJKMNQUVXZ
+DA,,,,CME Class III Milk,meat,CME,,,,,0,,FGHJKMNQUVXZ
+DX,,DX,,ICE US Dollar Index,currency,ICE,0.005,5,1900,USD,1,10,HMUZ
+EC,6E,URO,EU,CME Euro FX,currency,CME,0.00005,6,2640,USD,1,10,HMUZ
+ED,GE,,ED,CME Eurodollar,interest-rate,CME,,,,,0,,HMUZ
+ES,ES,ES,ES,CME S&P 500 Index E-Mini,equity,CME,0.25,12,13200,USD,1,10,HMUZ
+FBTP,,FBTP,,EUREX Euro-BTP,interest-rate,EUREX,0.01,10,3691,EUR,1,10,HMUZ
+FDAX,,FDAX,,EUREX DAX,equity,EUREX,1,25,39835,EUR,1,10,HMUZ
+FESX,,FESX,,EUREX EURO STOXX 50 Index,equity,EUREX,1,10,4236,EUR,1,10,HMUZ
+FF,ZQ,,FF,CBOT 30-day Federal Funds,interest-rate,CME,,,,,0,,FGHJKMNQUVXZ
+FGBL,,FGBL,,EUREX Euro-Bund,interest-rate,EUREX,0.01,10,3555,EUR,1,10,HMUZ
+FGBM,,FGBM,,EUREX Euro-Bobl,interest-rate,EUREX,0.01,10,1815,EUR,1,10,HMUZ
+FGBS,,FGBS,,EUREX Euro-Schatz,interest-rate,EUREX,0.005,5,552,EUR,1,10,HMUZ
+FOAT,,FOAT,,EUREX Euro-OAT,interest-rate,EUREX,0.01,10,3251,EUR,1,10,HMUZ
+FV,ZF,ZF,FV,CBOT 5-year US Treasury Note,interest-rate,CME,0.0078125,7,1320,USD,1,32,HMUZ
+G,,,,ICE Gasoil,petroleum,ICE,,,,,0,,FGHJKMNQUVXZ
+GC,GC,GC,GC,NYMEX Gold,metal,CME,0.1,10,7920,USD,1,10,GJMQVZ
+HG,HG,HG,HG,COMEX Copper,metal,CME,0.0005,12,7150,USD,1,10,FHKNUZ
+HO,HO,HO,,NYMEX Heating Oil,petroleum,CME,0.0001,4,18700,USD,1,10,FGHJKMNQUVXZ
+I,,,,LIFFE EURIBOR,interest-rate,LIFFE,,,,,0,,HMUZ
+JY,6J,JY,JY,CME Japanese Yen JPY,currency,CME,0.5,6,2750,USD,1,10,HMUZ
+KC,,KC,,ICE Coffee C,tropical,ICE,0.05,18,9000,USD,1,10,HKNUZ
+KW,KE,,,CME Kansas City Wheat,grain,CME,,,,,0,,HKNUZ
+L,,,,LIFFE Short Sterling,interest-rate,LIFFE,,,,,0,,HMUZ
+LB,,,LB,CME Random Length Lumber,fiber,CME,,,,,0,,FHKNUX
+LE,LE,LC,LE,CME Live Cattle,meat,CME,0.025,10,1540,USD,1,10,GJMQVZ
+LN,HE,LH,HE,CME Lean Hogs,meat,CME,0.025,10,2090,USD,1,10,GJMNQVZ
+M,,,,ICE UK Natural Gas,petroleum,ICE,,,,,0,,FGHJKMNQUVXZ
+MD,MD,EMD,EMD,CME S&P 400 Midcap Index,equity,CME,0.1,10,14850,USD,1,10,HMUZ
+MP,,MP,PX,CME Mexican Peso,currency,CME,0.0001,5,1870,USD,1,10,HMUZ
+MP,,,,ICE British Pound GBP,currency,ICE,,,,,0,,HMUZ
+MW,,,,MGEX Hard Red Spring Wheat,grain,MGEX,,,,,0,,HKNUZ
+NE,6N,NE,NE,CME New Zealand Dollar NZD,currency,CME,0.00005,5,1540,USD,1,10,HMUZ
+NG,NG,NG,NG,NYMEX Natural Gas,petroleum,CME,0.001,10,5335,USD,1,10,FGHJKMNQUVXZ
+NK,NKD,NKD,NKD,CME Nikkei 225,equity,CME,5,25,7700,USD,1,10,HMUZ
+NQ,NQ,NQ,NQ,CME NASDAQ 100 Index Mini,equity,CME,0.25,5,18700,USD,1,10,HMUZ
+O,,,,ICE Heating Oil,petroleum,ICE,,,,,0,,FGHJKMNQUVXZ
+O,,ZO,O,CBOT Oats,grain,CME,0.25,12,2640,USD,1,8,HKNUZ
+OJ,,OJ,,ICE Orange Juice,tropical,ICE,0.05,7,1410,USD,1,10,FHKNUX
+PA,PA,PA,PA,NYMEX Palladium,metal,CME,0.5,50,41800,USD,1,10,HMUZ
+PB,,,,SHFE Lead,metal,SHFE,,,,,0,,FHJKMNQUVXZ
+PL,PL,PL,PL,NYMEX Platinum,metal,CME,0.1,5,4400,USD,1,10,FJNV
+R,,,,LIFFE Long Gilt,interest-rate,LIFFE,,,,,0,,HMUZ
+RB,RB,RB,RB,NYMEX Gasoline,petroleum,CME,0.0001,4,13200,USD,1,10,FGHJKMNQUVXZ
+RB,,,,SHFE Rebar,metal,SHFE,,,,,0,,FHJKMNQUVXZ
+RF,,,,ICE Russell 1000 Index Mini,equity,ICE,,,,,0,,HMUZ
+RR,,ZR,RR,CBOT Rough Rice,grain,CME,0.005,10,1183,USD,1,10,FHKNUX
+RS1,,,,CME Russell 1000 Index Mini,equity,CME,,,,,0,,HMUZ
+RTY,,RTY,RTY,CME Russell 2000 Index Mini,equity,CME,0.1,5,6600,USD,1,10,HMUZ
+RU,,,,SHFE Natural Rubber,fiber,SHFE,,,,,0,,FHJKMNQUVX
+S,ZS,ZS,S,CBOT Soybeans,grain,CME,0.25,12,5060,USD,1,8,FHKNQUX
+SB,,SB,,ICE Sugar No. 11,tropical,ICE,0.01,11,1344,USD,1,10,HKNV
+SF,6S,SF,SF,CME Swiss Franc CHF,currency,CME,0.0001,12,3850,USD,1,10,HMUZ
+SI,SI,SI,SI,NYMEX Silver,metal,CME,0.005,25,10450,USD,1,10,FHKNUZ
+SM,ZM,ZM,SM,CBOT Soybean Meal,grain,CME,0.1,10,2860,USD,1,10,FHKNQUVZ
+SP,SP,,,CME S&P 500 Index,equity,CME,,,,,0,,HMUZ
+SXF,,,,MX Montreal S&P/TSX 60 Index,equity,MX,,,,,0,,HMUZ
+T,,,,ICE WTI Crude Oil,petroleum,ICE,,,,,0,,FGHJKMNQUVXZ
+TF,,,,ICE Russell 2000 Index Mini,equity,ICE,,,,,0,,HMUZ
+TU,ZT,ZT,TU,CBOT 2-year US Treasury Note,interest-rate,CME,0.00390625,7,990,USD,1,32,HMUZ
+TY,ZN,ZN,TY,CBOT 10-year US Treasury Note,interest-rate,CME,0.015625,12,1870,USD,1,32,HMUZ
+US,ZB,ZB,US,CBOT 30-year US Treasury Bond,interest-rate,CME,0.03125,31,3850,USD,1,32,HMUZ
+VX,,VX,VX,CBOE VIX Futures,index,CBOE,0.05,50,10890,USD,1,10,FHJKMNQUVXZ
+W,ZW,ZW,W,CBOT Wheat,grain,CME,0.25,12,5610,USD,1,10,HKNUZ
+YM,,YM,YM,CME E-mini Dow Jones,equity,CME,1,5,9350,USD,1,10,HMUZ
+Z,,,,LIFFE FTSE 100 Index,equity,LIFFE,,,,,0,,HMUZ
+ZN,,,,SHFE Zinc,metal,SHFE,,,,,0,,FHJKMNQUVXZ
+FC,,FC,,CME Feeder Cattle,meat,CME,0.025,12,2723,USD,1,10,
