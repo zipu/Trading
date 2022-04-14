@@ -33,9 +33,9 @@ def ohlc_chart(ax, quotes, period='day', linewidth=1, colors=['k','k'], backgrou
         #quotes['close']>= quotes['open']
         
         #x축 세팅 bar와 bar사이의 간격 설정
-        if dates.dtype == 'M8[ns]':
+        if np.issubdtype(dates.dtype, np.datetime64): # date column 의 type이 datetime형식인 경우
             offset = np.timedelta64(8, 'h')
-        elif dates.dtype == 'int64':
+        elif np.issubdtype(dates.dtype, np.integer):
             offset = 0.3
         
         if colors[0] == colors[1]:
@@ -68,7 +68,7 @@ def ohlc_chart(ax, quotes, period='day', linewidth=1, colors=['k','k'], backgrou
     return ax
 
 
-def view(data, period='minute', size=(10,6), colors=['k','k']):
+def view(data, period='day', size=(10,6), colors=['k','k']):
     """
     datetime index의 ohlc dataframe 인풋
     """
