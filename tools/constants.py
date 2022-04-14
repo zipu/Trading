@@ -8,5 +8,4 @@ dirname = os.path.dirname(__file__)
 
 # 데이터가 저장된 폴더 
 DATADIR = os.path.join(os.path.abspath(dirname), '..', 'data')
-Test = 'dd'
 
