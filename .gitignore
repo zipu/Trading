@@ -1,7 +1,5 @@
 *.pyc
 */*/__pycache__/
 */__pycache__/
-data/
-scripts/log/
-scripts/secret.json
-
+Data/
+XingAPI/ebest/Res/
