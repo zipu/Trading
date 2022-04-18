@@ -19,7 +19,7 @@ def monitor_memory(dirr):
     glob = inspect.stack()[1][0].f_globals
 
     # Get a sorted list of the objects and their sizes
-    r = sorted([(x, int(sys.getsizeof(glob.get(x))/1024)) for x in dirr if not x.startswith('_')\
+    r = sorted([(x, int(sum([sys.getsizeof(glob.get(x))]+[sys.getsizeof(getattr(glob.get(x), attr)) for attr in dir(glob.get(x))])/1024)) for x in dirr if not x.startswith('_')\
          and x not in sys.modules and x not in ipython_vars], key=lambda x: x[1], reverse=True)
 
     print(r)

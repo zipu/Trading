@@ -6,7 +6,6 @@ B,,,,ICE Brent Crude Oil,petroleum,ICE,,,,,0,,FGHJKMNQUVXZ
 BO,ZL,ZL,BO,CBOT Soybean Oil,grain,CME,0.01,6,3080,USD,1,10,FHKNQUVZ
 BP,B6,BP,BP,CME British Pound GBP,currency,CME,0.0001,6,2365,USD,1,10,HMUZ
 C,ZC,ZC,C,CBOT Corn,grain,CME,0.25,12,2915,USD,1,8,HKNUZ
-C,,,,LIFFE London Cocoa,tropical,LIFFE,,,,,0,,HKNUZ
 CC,,CC,,ICE Cocoa,tropical,ICE,1,10,1900,USD,1,10,HKNUZ
 CD,D6,CD,CD,CME Canadian Dollar CAD,currency,CME,0.00005,5,1485,USD,1,10,HMUZ
 CL,CL,CL,CL,NYMEX WTI Crude Oil,petroleum,CME,0.01,10,10450,USD,1,10,FGHJKMNQUVXZ

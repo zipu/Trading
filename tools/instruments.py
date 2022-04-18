@@ -51,15 +51,24 @@ class Instrument:
     def __repr__(self):
         return f"[{self.symbol}] {self.name}"
 
-    def quotes(self, db='kibot', format='numpy'):
+    def quotes(self, db='kibot', format='numpy', fields='ohlcvi'):
         """
         Database 에 저장된 일봉데이터 반환
         kwargs
          db: database 종류 (default: kibot)
+         format: 'numpy' or 'pandas'
+         fields: 반환할 필드값 'ohlcv', 'ohlc', 'ohlcvi'
         """
-        filepath = os.path.join(DATADIR,'kibot','quotes.hdf')
+        filename = "futures-continuous-raw.hdf"
+        filepath = os.path.join(DATADIR, db, filename)
         file = h5py.File(filepath, 'r')
-        data = file[self.symbol][:]
+        if fields == 'ohlcvi':
+            data = file[self.symbol][:]
+        if fields == 'ohlcv':
+            data = file[self.symbol]['date','open','high','low','close','volume']
+        if fields == 'ohlc':
+            data = file[self.symbol]['date','open','high','low','close'] 
+        
         file.close()
 
         if format == 'numpy':
@@ -158,12 +167,13 @@ class Instruments(dict):
     def __repr__(self):
         return "종목 정보 오브젝트"
     
-    def get(self, symbol):
-        """ 
-        종목코드에 해당하는 종목 정보를 반환
-        symbol(string) : 종목코드
-        """
-        return self[symbol]
+    # deprecated - dict의 하위 클래스여서 기본적으로 장착하고 있음
+    #def get(self, symbol):
+    #    """ 
+    #    종목코드에 해당하는 종목 정보를 반환
+    #    symbol(string) : 종목코드
+    #    """
+    #    return self[symbol]
     
     def getlist(self, field):
         """
@@ -177,7 +187,7 @@ class Instruments(dict):
                 
         return tuple(lists)
 
-    def filter(self, **kwargs):
+    def filter(self,ebestall=False, kibotall=False, **kwargs):
         """
         전체 상품 목록중 kwargs로 들어온 key,value 들과 매칭된 상품목록 리턴
         argument에 ebest(boolean) 또는 kibot(boolean)이 있으면, 
@@ -185,13 +195,13 @@ class Instruments(dict):
         ex) filter(symbol='AD', tradable=True) 
         """
         lists = []
-        instruments = self.values()
-        if 'ebest' in kwargs.keys():
-            kwargs.pop('ebest')
+        instruments = list(self.values())
+        if ebestall:
+            #kwargs.pop('ebest')
             instruments = filter(lambda i: i.ebest, instruments)
         
-        if 'kibot' in kwargs.keys():
-            kwargs.pop('kibot')
+        if kibotall:
+            #kwargs.pop('kibot')
             instruments = filter(lambda i: i.kibot, instruments)
 
         for instrument in instruments:
@@ -199,16 +209,17 @@ class Instruments(dict):
                 lists.append(instrument)
         
         #print(f'Total {len(lists)} items selected')
-        return tuple(lists)
+        #return tuple(lists)
+        return lists 
 
-    def quotes(self, symbols=None, start=None, end=None):
+    def quotes(self, symbols=None, start=None, end=None, fields='ohlcvi'):
         """
         여러 상품의 일봉정보를 돌려주는 함수
         *args
-          db: 데이터 소스
           symbols: 상품 리스트
           start: 시작일자 (없으면 전체 데이터)
           end: 끝일자 
+          fields: 반환할 데이터의 필드값 'ohlcvi', 'ohlcv', 'ohlc'
         
         *return
           pandas dataframe
@@ -218,15 +229,73 @@ class Instruments(dict):
         
 
         #pandas column name
+        # ex) 상품이 AD, EC 입력받은 fields 값이 'ohlc' 이면
+        #  indexes = [
+        #              ['AD','AD','AD','AD','EC','EC','EC','EC],
+        #              ['open','high','low','close','open','high','low','close]
+        #            ]
+        fieldnames = ['open','high','low','close','volume','open_interest']
+        fieldnames = fieldnames[:len(fields)]
+        
         indexes = [
-            sum([ [instrument.symbol]*6 for instrument in symbols],[]),
-            ['open','high','low','close','volume','open_interest']*len(symbols)
+            sum([ [instrument.symbol]*len(fieldnames) for instrument in symbols],[]),
+            fieldnames*len(symbols)
         ]
 
-        df = pd.concat([i.quotes(format='pandas') for i in symbols], axis=1)
+        df = pd.concat([i.quotes(format='pandas', fields=fields) for i in symbols], axis=1)
         df.columns = indexes
         return df[start:end]
 
+    def kibot_contracts_list(self):
+        """
+        kibot의 월물 리스트 중 거래 및 사용가능한 상품에 대해
+        각 상품의 월물 목록을 시간순으로 배열하여 dictionary로 반환 
+        """
+        from collections import defaultdict
+        
+        contracts = defaultdict(list)
+        path = os.path.join(DATADIR, 'kibot','contracts-list.csv')
+        with open(path, 'r') as file:
+            wr = csv.DictReader(file)
+            for item in wr:
+                contracts[item['symbol']].append(item['contract'])
+        return contracts
+
+    def sort(self, contracts):
+        """
+        월물 리스트를 시간순서로 배열 후 리턴
+        """
+        return sorted(
+            contracts,
+            key=lambda x: (int(x[-2:]), self.month_code(x[-3])),
+        )
+                
+
+
+
+
+
+    def month_code(self, month):
+        """
+        선물 월물기호를 숫자(월) 로 반환
+        """
+        code = {
+            'F': 1,
+            'G': 2,
+            'H': 3,
+            'J': 4,
+            'K': 5,
+            'M': 6,
+            'N': 7,
+            'Q': 8,
+            'U': 9,
+            'V': 10,
+            'X': 11,
+            'Z': 12,
+        }
+        return code[month]
+    
+ 
 
 
 
