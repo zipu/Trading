@@ -1,4 +1,4 @@
-from .visualisation import ohlc_chart, view
+#from .visualisation import ohlc_chart, view
 
 #from .file_handler import open_file, load_products, dataframe
 

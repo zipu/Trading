@@ -6,6 +6,39 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+from matplotlib.ticker import Formatter
+
+
+
+class MyFormatter(Formatter):
+    """
+        OHLC 차트 표현시 X축 표시형식을 나타내는 formatter
+        matplotlib 의 dateformatter 로는 주말 또는 휴일이 공백으로 보이기 때문에
+        trading day들을 Integer index로 표현한후 format을 datetime으로 변경
+    """
+    def __init__(self, dates, fmt='%Y-%m-%d'):
+        self.dates = dates
+        self.fmt = fmt
+        self.xidx = []
+
+    def __call__(self, x, pos):
+        'Return the label for time x at position pos'
+        ind = int(np.round(x))
+        self.xidx.append(ind)
+        
+        if ind < 0:
+            return ''
+        
+        if ind >= len(self.dates):
+            #print(self.xidx)
+            diff = self.xidx[1] - self.xidx[0]
+            #print((self.dates.iloc[-1] + pd.Timedelta(days=diff)).strftime(self.fmt))
+            return (self.dates.iloc[-1] + pd.Timedelta(days=diff)).strftime(self.fmt)
+
+        
+        return self.dates[ind].strftime(self.fmt)
+
+
 
 
 """
@@ -22,8 +55,17 @@ def ohlc_chart(ax, quotes, period='day', linewidth=1, colors=['k','k'], backgrou
     """
     from pandas.plotting import register_matplotlib_converters
     register_matplotlib_converters()
+
+    # 인덱스가 날짜이면 이를 컬럼으로 옮김
+    if np.issubdtype(quotes.index.values.dtype, np.datetime64):
+        quotes.reset_index(inplace=True)
+        
+        # x 축 티커를 날짜로 표시 
+        myformatter = MyFormatter(quotes['date'])
+        ax.xaxis.set_major_formatter(myformatter)
     
     dates = quotes.index.values
+  
     o = quotes['open'].values
     h = quotes['high'].values
     l = quotes['low'].values
@@ -65,6 +107,8 @@ def ohlc_chart(ax, quotes, period='day', linewidth=1, colors=['k','k'], backgrou
     #ax.xaxis.set_minor_locator(mdates.DayLocator())
     #ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
     #ax.xaxis.set_minor_formatter(mdates.DateFormatter('%d'))
+    #x값을 날짜로 변환
+
     return ax
 
 

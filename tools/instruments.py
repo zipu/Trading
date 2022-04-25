@@ -7,11 +7,16 @@
 import csv
 import os
 from decimal import Decimal as D
+from datetime import datetime
 
 import h5py
 import pandas as pd
 
-from .constants import DATADIR
+from .constants import DATADIR,\
+                       INSTRUMENTS_CSV_PATH,\
+                       KIBOT_FUTURES_CONTINUOUS_BV_DB_PATH, SRF_CONTINUOUS_BO_DB_PATH, SRF_CONTINUOUS_BV_DB_PATH,\
+                       SRF_CONTRACTS_CSV_PATH, SRF_CONTRACTS_DB_PATH,\
+                       SRF_ROLLOVER_BO_CSV_PATH, SRF_ROLLOVER_BV_CSV_PATH
 
 
 class Instrument:
@@ -21,13 +26,14 @@ class Instrument:
     def __init__(self, instrument):
         self._symbol = instrument['symbol']
         self._name = instrument['name']
+        self._srf = instrument['srf'] #SRF 심볼
         self._ebest = instrument['ebest'] #이베스트 심볼
         self._kibot = instrument['kibot'] #kibot 심볼
         self._exchange = instrument['exchange']
         self._months = instrument['months'] #거래가능 월물
-        self._tickunit = D(instrument['tickunit']) if instrument['tickunit'] else D('0')
-        self._tickvalue = D(instrument['tickvalue'])  if instrument['tickvalue'] else D('0')
-        self._margin = D(instrument['margin'])  if instrument['margin'] else D('0')
+        self._tickunit = float(instrument['tickunit'] or 0)#D(instrument['tickunit']) if instrument['tickunit'] else D('0')
+        self._tickvalue = float(instrument['tickvalue'] or 0)#D(instrument['tickvalue'])  if instrument['tickvalue'] else D('0')
+        self._margin = int(instrument['margin'] or 0)#D(instrument['margin'])  if instrument['margin'] else D('0')
         self._currency = instrument['currency']
         self._tradable = True if instrument['tradable'] == '1' else False 
         self._number_system = int(instrument['number_system'] or 0)
@@ -35,6 +41,7 @@ class Instrument:
         self._info = {
             'symbol': self._symbol,
             'name': self._name,
+            'srf': self._srf,
             'ebest': self._ebest,
             'kibot': self._kibot,
             'exchange': self._exchange,
@@ -48,26 +55,53 @@ class Instrument:
             'sector': self._sector,
         }
 
+        self.contracts = self._contracts_list()
+
+
     def __repr__(self):
         return f"[{self.symbol}] {self.name}"
 
-    def quotes(self, db='kibot', format='numpy', fields='ohlcvi'):
+    def quotes(self, db='srf', method='bo', format='pandas', fields='ohlcvi', contract=None):
         """
         Database 에 저장된 일봉데이터 반환
         kwargs
          db: database 종류 (default: kibot)
          format: 'numpy' or 'pandas'
+         method: 연결방식 (bo 또는 bv)
          fields: 반환할 필드값 'ohlcv', 'ohlc', 'ohlcvi'
         """
-        filename = "futures-continuous-raw.hdf"
-        filepath = os.path.join(DATADIR, db, filename)
-        file = h5py.File(filepath, 'r')
+        #filename = "futures-continuous-BV.hdf"
+        #filepath = os.path.join(DATADIR, db, filename)
+        if db == 'kibot':
+            file = h5py.File(KIBOT_FUTURES_CONTINUOUS_BV_DB_PATH, 'r')
+            dset = file
+            code = self.symbol
+        
+        elif db == 'srf' and not contract:
+            if method == 'bo':
+                file = h5py.File(SRF_CONTINUOUS_BO_DB_PATH, 'r')
+            elif method == 'bv':
+                file = h5py.File(SRF_CONTINUOUS_BV_DB_PATH, 'r')
+            dset = file
+            code = self.symbol 
+
+        elif db == 'srf' and contract:
+            file = h5py.File(SRF_CONTRACTS_DB_PATH, 'r')
+            dset = file[self.symbol]
+            code = contract
+        
+        if not dset.get(code):
+            """ 해당 상품 데이터가 없음 """
+            return None
+
+        
+        
         if fields == 'ohlcvi':
-            data = file[self.symbol][:]
-        if fields == 'ohlcv':
-            data = file[self.symbol]['date','open','high','low','close','volume']
-        if fields == 'ohlc':
-            data = file[self.symbol]['date','open','high','low','close'] 
+            data = dset[code][:]
+        elif fields == 'ohlcv':
+            data = dset[code]['date','open','high','low','close','volume']
+        elif fields == 'ohlc':
+            data = dset[code]['date','open','high','low','close'] 
         
         file.close()
 
@@ -78,6 +112,52 @@ class Instrument:
             df['date'] = df['date'].astype('M8[D]')
             df.set_index('date', inplace=True)
             return df
+
+    def rolldates(self, method=None):
+        """
+        data/srf/SRF_rollover_bv.csv 로부터 월물 롤오버 정보를 취합하여 리턴
+        Args:
+         method: 'bo' (backward & open interest)
+                 'bv' (backward & volume)
+        """
+        if method == 'bo':
+            filepath = SRF_ROLLOVER_BO_CSV_PATH
+        elif method == 'bv':
+            filepath = SRF_ROLLOVER_BV_CSV_PATH
+        elif method == None:
+            raise ValueError("roll over metod must be given")
+
+        rolls = []
+        with open(filepath, mode='r') as f:
+            lines = csv.reader(f)
+            for line in lines:
+                if line[0] == self.symbol:
+                    rolls.append(line)
+        
+        return rolls
+
+
+
+
+    def _contracts_list(self):
+        """
+        월물 정보를 리스트로 반환
+        return:
+            [symbol, srf, code, from_date, to_date, refreshed_at, name]
+        """
+        contracts = []
+        with open(SRF_CONTRACTS_CSV_PATH, encoding='utf-8', mode='r') as f:
+            lines = csv.DictReader(f)
+            for line in lines:
+                if line['symbol'] == self.symbol:
+                    from_date = datetime.strptime(line['from_date'], '%Y-%m-%d')
+                    to_date = datetime.strptime(line['to_date'], '%Y-%m-%d')
+                    contract = (line['symbol'], line['srf'], line['contract'], from_date,\
+                                to_date, line['refreshed_at'], line['name'])
+                    contracts.append(contract)
+        return contracts
+
+
 
 
     
@@ -95,6 +175,11 @@ class Instrument:
     def name(self):
         """ 상품명 """
         return self._name
+
+    @property
+    def srf(self):
+        """ SRF (Reference futures) 상품코드 """
+        return self._srf
 
     @property
     def ebest(self):
@@ -156,11 +241,13 @@ class Instruments(dict):
     root/data/instruments.csv 에 저장된 내용을 오브젝트화 한다
     계속 업데이트 필요
     """
-    _filepath = os.path.join(DATADIR, 'instruments.csv')
-    
+    #_filepath = os.path.join(DATADIR, 'instruments.csv')
+    _filepath = INSTRUMENTS_CSV_PATH
+
     def __init__(self):
         #self.dict = dict()
         with open(Instruments._filepath, 'r') as file:
+        #with open(INSTRUMENTS_CSV_PATH, 'r') as file:
             for line in csv.DictReader(file):
                 self[line['symbol']] = Instrument(line)
 
@@ -187,7 +274,7 @@ class Instruments(dict):
                 
         return tuple(lists)
 
-    def filter(self,ebestall=False, kibotall=False, **kwargs):
+    def filter(self,ebestall=False, kibotall=False, srfall=False, **kwargs):
         """
         전체 상품 목록중 kwargs로 들어온 key,value 들과 매칭된 상품목록 리턴
         argument에 ebest(boolean) 또는 kibot(boolean)이 있으면, 
@@ -204,6 +291,9 @@ class Instruments(dict):
             #kwargs.pop('kibot')
             instruments = filter(lambda i: i.kibot, instruments)
 
+        if srfall:
+            instruments = filter(lambda i: i.srf, instruments)
+
         for instrument in instruments:
             if all(instrument.info[k] == v for k,v in kwargs.items()):
                 lists.append(instrument)
@@ -212,20 +302,37 @@ class Instruments(dict):
         #return tuple(lists)
         return lists 
 
-    def quotes(self, symbols=None, start=None, end=None, fields='ohlcvi'):
+    def quotes(self, db='srf', symbols=None, start=None, end=None, fields='ohlcvi', method='bo'):
         """
         여러 상품의 일봉정보를 돌려주는 함수
         *args
-          symbols: 상품 리스트
+          db: 'srf' or 'kibot'
+          symbols: 상품 리스트 (없으면 전체 데이터)
           start: 시작일자 (없으면 전체 데이터)
           end: 끝일자 
           fields: 반환할 데이터의 필드값 'ohlcvi', 'ohlcv', 'ohlc'
+          method: 'bo' or 'bv'
         
         *return
           pandas dataframe
         """
-        if symbols is None:
-            symbols = self.filter(kibot=True)
+        if db == 'kibot':
+            filename = KIBOT_FUTURES_CONTINUOUS_BV_DB_PATH
+        
+        elif db == 'srf' and method=='bo':
+            filename = SRF_CONTINUOUS_BO_DB_PATH
+        
+        elif db == 'srf' and method=='bv':
+            filename = SRF_CONTINUOUS_BV_DB_PATH
+
+        else:
+            raise ValueError(f"'{method}' is not known method")
+
+        file = h5py.File(filename, 'r')
+
+
+        if not symbols:
+            symbols = list(file.keys())
         
 
         #pandas column name
@@ -234,16 +341,28 @@ class Instruments(dict):
         #              ['AD','AD','AD','AD','EC','EC','EC','EC],
         #              ['open','high','low','close','open','high','low','close]
         #            ]
-        fieldnames = ['open','high','low','close','volume','open_interest']
+        fieldnames = ['open','high','low','close','volume','oi']
         fieldnames = fieldnames[:len(fields)]
-        
+        #indexes = [
+        #    sum([ [instrument.symbol]*len(fieldnames) for instrument in symbols],[]),
+        #    fieldnames*len(symbols)
+        #]
         indexes = [
-            sum([ [instrument.symbol]*len(fieldnames) for instrument in symbols],[]),
-            fieldnames*len(symbols)
+            [],
+            []
         ]
 
-        df = pd.concat([i.quotes(format='pandas', fields=fields) for i in symbols], axis=1)
+        df = pd.DataFrame()
+        for symbol, quote in file.items(): 
+            indexes[0] = indexes[0] + [symbol]*len(fieldnames)
+            indexes[1] = indexes[1] + fieldnames
+            data = pd.DataFrame(quote[:])
+            data['date'] = data['date'].astype('M8[D]')
+            data.set_index('date', inplace=True)
+
+            df = pd.concat([df, data], axis=1)
         df.columns = indexes
+        file.close()
         return df[start:end]
 
     def kibot_contracts_list(self):

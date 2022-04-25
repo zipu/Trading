@@ -6,7 +6,6 @@ B,,,,ICE Brent Crude Oil,petroleum,ICE,,,,,0,,FGHJKMNQUVXZ
 BO,ZL,ZL,BO,CBOT Soybean Oil,grain,CME,0.01,6,3080,USD,1,10,FHKNQUVZ
 BP,B6,BP,BP,CME British Pound GBP,currency,CME,0.0001,6,2365,USD,1,10,HMUZ
 C,ZC,ZC,C,CBOT Corn,grain,CME,0.25,12,2915,USD,1,8,HKNUZ
-C,,,,LIFFE London Cocoa,tropical,LIFFE,,,,,0,,HKNUZ
 CC,,CC,,ICE Cocoa,tropical,ICE,1,10,1900,USD,1,10,HKNUZ
 CD,D6,CD,CD,CME Canadian Dollar CAD,currency,CME,0.00005,5,1485,USD,1,10,HMUZ
 CL,CL,CL,CL,NYMEX WTI Crude Oil,petroleum,CME,0.01,10,10450,USD,1,10,FGHJKMNQUVXZ
@@ -41,13 +40,11 @@ LN,HE,LH,HE,CME Lean Hogs,meat,CME,0.025,10,2090,USD,1,10,GJMNQVZ
 M,,,,ICE UK Natural Gas,petroleum,ICE,,,,,0,,FGHJKMNQUVXZ
 MD,MD,EMD,EMD,CME S&P 400 Midcap Index,equity,CME,0.1,10,14850,USD,1,10,HMUZ
 MP,,MP,PX,CME Mexican Peso,currency,CME,0.0001,5,1870,USD,1,10,HMUZ
-MP,,,,ICE British Pound GBP,currency,ICE,,,,,0,,HMUZ
 MW,,,,MGEX Hard Red Spring Wheat,grain,MGEX,,,,,0,,HKNUZ
 NE,6N,NE,NE,CME New Zealand Dollar NZD,currency,CME,0.00005,5,1540,USD,1,10,HMUZ
 NG,NG,NG,NG,NYMEX Natural Gas,petroleum,CME,0.001,10,5335,USD,1,10,FGHJKMNQUVXZ
 NK,NKD,NKD,NKD,CME Nikkei 225,equity,CME,5,25,7700,USD,1,10,HMUZ
 NQ,NQ,NQ,NQ,CME NASDAQ 100 Index Mini,equity,CME,0.25,5,18700,USD,1,10,HMUZ
-O,,,,ICE Heating Oil,petroleum,ICE,,,,,0,,FGHJKMNQUVXZ
 O,,ZO,O,CBOT Oats,grain,CME,0.25,12,2640,USD,1,8,HKNUZ
 OJ,,OJ,,ICE Orange Juice,tropical,ICE,0.05,7,1410,USD,1,10,FHKNUX
 PA,PA,PA,PA,NYMEX Palladium,metal,CME,0.5,50,41800,USD,1,10,HMUZ
@@ -55,7 +52,6 @@ PB,,,,SHFE Lead,metal,SHFE,,,,,0,,FHJKMNQUVXZ
 PL,PL,PL,PL,NYMEX Platinum,metal,CME,0.1,5,4400,USD,1,10,FJNV
 R,,,,LIFFE Long Gilt,interest-rate,LIFFE,,,,,0,,HMUZ
 RB,RB,RB,RB,NYMEX Gasoline,petroleum,CME,0.0001,4,13200,USD,1,10,FGHJKMNQUVXZ
-RB,,,,SHFE Rebar,metal,SHFE,,,,,0,,FHJKMNQUVXZ
 RF,,,,ICE Russell 1000 Index Mini,equity,ICE,,,,,0,,HMUZ
 RR,,ZR,RR,CBOT Rough Rice,grain,CME,0.005,10,1183,USD,1,10,FHKNUX
 RS1,,,,CME Russell 1000 Index Mini,equity,CME,,,,,0,,HMUZ
@@ -79,3 +75,5 @@ YM,,YM,YM,CME E-mini Dow Jones,equity,CME,1,5,9350,USD,1,10,HMUZ
 Z,,,,LIFFE FTSE 100 Index,equity,LIFFE,,,,,0,,HMUZ
 ZN,,,,SHFE Zinc,metal,SHFE,,,,,0,,FHJKMNQUVXZ
 FC,,FC,,CME Feeder Cattle,meat,CME,0.025,12,2723,USD,1,10,
+FF,,,,CME 30 Day Federal Funds Futures,,,,,,,0,,
+HO,,,,CME NY Harbor ULSD Futures,,,,,,,,,

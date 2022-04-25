@@ -1,2 +1,2 @@
 #from .backtesting import BackTester
-from .simulator import Trader, Market 
+#from .simulator import Trader, Market 
