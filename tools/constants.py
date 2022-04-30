@@ -20,6 +20,7 @@ SRF_METADATA_CSV_PATH = os.path.join(DATADIR, 'nasdaq-data-link','SRF_metadata.c
 
 # SRF 에서 다운 가능상품들을 월물별로 정리한 파일
 SRF_CONTRACTS_CSV_PATH = os.path.join(DATADIR, 'nasdaq-data-link','SRF_contracts.csv')
+SRF_CONTRACTS_JSON_PATH = os.path.join(DATADIR, 'nasdaq-data-link','SRF_contracts.json')
 
 # SRF 월물별 전체 일데이터 데이터 베이스
 SRF_CONTRACTS_DB_PATH = os.path.join(DATADIR, 'nasdaq-data-link','SRF_contracts_db.hdf')
@@ -27,15 +28,18 @@ SRF_CONTRACTS_DB_PATH = os.path.join(DATADIR, 'nasdaq-data-link','SRF_contracts_
 # SRF 수정 연결선물 데이터
 #1. Backward Panama Roll Over by open interest
 SRF_CONTINUOUS_BO_DB_PATH = os.path.join(DATADIR, 'nasdaq-data-link','SRF_continuous_bo_db.hdf')
-#1. Backward Panama Roll Over by volume
-SRF_CONTINUOUS_BV_DB_PATH = os.path.join(DATADIR, 'nasdaq-data-link','SRF_continuous_bv_db.hdf')
+#2. Backward Panama Roll Over by volume
+#SRF_CONTINUOUS_BV_DB_PATH = os.path.join(DATADIR, 'nasdaq-data-link','SRF_continuous_bv_db.hdf')
+
+# SRF 단순 연결선물 데이터
+SRF_CONTINUOUS_SO_DB_PATH = os.path.join(DATADIR, 'nasdaq-data-link','SRF_continuous_so_db.hdf')
 
 # SRF 월물데이터 롤오버 정보
 #2. Roll Dates information
 # roll over by open interest
 SRF_ROLLOVER_BO_CSV_PATH = os.path.join(DATADIR, 'nasdaq-data-link','SRF_rollover_bo.csv')
 # roll over by volume
-SRF_ROLLOVER_BV_CSV_PATH = os.path.join(DATADIR, 'nasdaq-data-link','SRF_rollover_bv.csv')
+#SRF_ROLLOVER_BV_CSV_PATH = os.path.join(DATADIR, 'nasdaq-data-link','SRF_rollover_bv.csv')
 
 
 """

@@ -4,7 +4,7 @@
 - data/instruments.csv 파일에 저장된 상품정보를 불러와 오브젝트화 함
 
 """
-import csv
+import csv, json
 import os
 from decimal import Decimal as D
 from datetime import datetime
@@ -14,16 +14,19 @@ import pandas as pd
 
 from .constants import DATADIR,\
                        INSTRUMENTS_CSV_PATH,\
-                       KIBOT_FUTURES_CONTINUOUS_BV_DB_PATH, SRF_CONTINUOUS_BO_DB_PATH, SRF_CONTINUOUS_BV_DB_PATH,\
-                       SRF_CONTRACTS_CSV_PATH, SRF_CONTRACTS_DB_PATH,\
-                       SRF_ROLLOVER_BO_CSV_PATH, SRF_ROLLOVER_BV_CSV_PATH
+                       KIBOT_FUTURES_CONTINUOUS_BV_DB_PATH, SRF_CONTINUOUS_BO_DB_PATH,\
+                       SRF_CONTINUOUS_SO_DB_PATH, SRF_CONTRACTS_JSON_PATH, SRF_CONTRACTS_DB_PATH,\
+                       SRF_ROLLOVER_BO_CSV_PATH
+
+from .quotes import Quotes
 
 
+    
 class Instrument:
     """
     상품 인스턴스
     """
-    def __init__(self, instrument):
+    def __init__(self, instrument, contracts):
         self._symbol = instrument['symbol']
         self._name = instrument['name']
         self._srf = instrument['srf'] #SRF 심볼
@@ -55,18 +58,17 @@ class Instrument:
             'sector': self._sector,
         }
 
-        self.contracts = self._contracts_list()
+        self.contracts = contracts 
 
 
     def __repr__(self):
         return f"[{self.symbol}] {self.name}"
 
-    def quotes(self, db='srf', method='bo', format='pandas', fields='ohlcvi', contract=None):
+    def quotes(self, db='srf', method='bo', fields='ohlcvi', contract=None):
         """
         Database 에 저장된 일봉데이터 반환
         kwargs
          db: database 종류 (default: kibot)
-         format: 'numpy' or 'pandas'
          method: 연결방식 (bo 또는 bv)
          fields: 반환할 필드값 'ohlcv', 'ohlc', 'ohlcvi'
         """
@@ -80,8 +82,16 @@ class Instrument:
         elif db == 'srf' and not contract:
             if method == 'bo':
                 file = h5py.File(SRF_CONTINUOUS_BO_DB_PATH, 'r')
-            elif method == 'bv':
-                file = h5py.File(SRF_CONTINUOUS_BV_DB_PATH, 'r')
+            
+            #elif method == 'bv':
+            #    file = h5py.File(SRF_CONTINUOUS_BV_DB_PATH, 'r')
+            
+            elif method == 'so':
+                file = h5py.File(SRF_CONTINUOUS_SO_DB_PATH, 'r')
+
+            else:
+                raise ValueError(f"method: {method} does not exit")
+            
             dset = file
             code = self.symbol 
 
@@ -105,13 +115,21 @@ class Instrument:
         
         file.close()
 
-        if format == 'numpy':
-            return data
-        if format == 'pandas':
-            df = pd.DataFrame(data)
-            df['date'] = df['date'].astype('M8[D]')
-            df.set_index('date', inplace=True)
-            return df
+        df = pd.DataFrame(data)
+        #if 'date' in df.columns:
+        df['date'] = df['date'].astype('M8[D]')
+        df.set_index('date', inplace=True)
+        df.columns.names = (['field'])
+        df.rename(columns = {'open_interest':'oi'}, inplace = True)
+        
+        return Quotes(df, type='single')
+        #if format == 'numpy':
+        #    return data
+        #if format == 'pandas':
+        #    df = pd.DataFrame(data)
+        #    df['date'] = df['date'].astype('M8[D]')
+        #    df.set_index('date', inplace=True)
+        #    return df
 
     def rolldates(self, method=None):
         """
@@ -119,8 +137,9 @@ class Instrument:
         Args:
          method: 'bo' (backward & open interest)
                  'bv' (backward & volume)
+                 'so' (simple & open interest)
         """
-        if method == 'bo':
+        if method == 'bo' or method=='so':
             filepath = SRF_ROLLOVER_BO_CSV_PATH
         elif method == 'bv':
             filepath = SRF_ROLLOVER_BV_CSV_PATH
@@ -137,30 +156,7 @@ class Instrument:
         return rolls
 
 
-
-
-    def _contracts_list(self):
-        """
-        월물 정보를 리스트로 반환
-        return:
-            [symbol, srf, code, from_date, to_date, refreshed_at, name]
-        """
-        contracts = []
-        with open(SRF_CONTRACTS_CSV_PATH, encoding='utf-8', mode='r') as f:
-            lines = csv.DictReader(f)
-            for line in lines:
-                if line['symbol'] == self.symbol:
-                    from_date = datetime.strptime(line['from_date'], '%Y-%m-%d')
-                    to_date = datetime.strptime(line['to_date'], '%Y-%m-%d')
-                    contract = (line['symbol'], line['srf'], line['contract'], from_date,\
-                                to_date, line['refreshed_at'], line['name'])
-                    contracts.append(contract)
-        return contracts
-
-
-
-
-    
+   
     @property
     def info(self):
         """ 전체 상품 정보를 dictionary로 반환"""
@@ -235,32 +231,30 @@ class Instrument:
         """ 섹터분류 """
         return self._sector
 
+
+
+
+
 class Instruments(dict):
     """
     종목(instrument) 정보를 나타내는 클래스
     root/data/instruments.csv 에 저장된 내용을 오브젝트화 한다
     계속 업데이트 필요
     """
-    #_filepath = os.path.join(DATADIR, 'instruments.csv')
-    _filepath = INSTRUMENTS_CSV_PATH
-
     def __init__(self):
-        #self.dict = dict()
-        with open(Instruments._filepath, 'r') as file:
-        #with open(INSTRUMENTS_CSV_PATH, 'r') as file:
+
+        #종목별 월물리스트 불러오기
+        #[symbol, srf, code, from_date, to_date, refreshed_at]
+        with open(SRF_CONTRACTS_JSON_PATH, 'r') as f:
+            contracts = json.load(f)
+
+        with open(INSTRUMENTS_CSV_PATH, 'r') as file:
             for line in csv.DictReader(file):
-                self[line['symbol']] = Instrument(line)
+                self[line['symbol']] = Instrument(line, contracts.get(line['symbol']))
 
     def __repr__(self):
         return "종목 정보 오브젝트"
     
-    # deprecated - dict의 하위 클래스여서 기본적으로 장착하고 있음
-    #def get(self, symbol):
-    #    """ 
-    #    종목코드에 해당하는 종목 정보를 반환
-    #    symbol(string) : 종목코드
-    #    """
-    #    return self[symbol]
     
     def getlist(self, field):
         """
@@ -311,7 +305,7 @@ class Instruments(dict):
           start: 시작일자 (없으면 전체 데이터)
           end: 끝일자 
           fields: 반환할 데이터의 필드값 'ohlcvi', 'ohlcv', 'ohlc'
-          method: 'bo' or 'bv'
+          method: 'bo' or 'so'
         
         *return
           pandas dataframe
@@ -322,8 +316,11 @@ class Instruments(dict):
         elif db == 'srf' and method=='bo':
             filename = SRF_CONTINUOUS_BO_DB_PATH
         
-        elif db == 'srf' and method=='bv':
-            filename = SRF_CONTINUOUS_BV_DB_PATH
+        #elif db == 'srf' and method=='bv':
+        #    filename = SRF_CONTINUOUS_BV_DB_PATH
+        
+        elif db == 'srf' and method=='so':
+            filename = SRF_CONTINUOUS_SO_DB_PATH
 
         else:
             raise ValueError(f"'{method}' is not known method")
@@ -333,37 +330,37 @@ class Instruments(dict):
 
         if not symbols:
             symbols = list(file.keys())
-        
+
 
         #pandas column name
-        # ex) 상품이 AD, EC 입력받은 fields 값이 'ohlc' 이면
-        #  indexes = [
-        #              ['AD','AD','AD','AD','EC','EC','EC','EC],
-        #              ['open','high','low','close','open','high','low','close]
-        #            ]
         fieldnames = ['open','high','low','close','volume','oi']
         fieldnames = fieldnames[:len(fields)]
-        #indexes = [
-        #    sum([ [instrument.symbol]*len(fieldnames) for instrument in symbols],[]),
-        #    fieldnames*len(symbols)
-        #]
+        #pandas multi index 형식
         indexes = [
             [],
             []
         ]
 
         df = pd.DataFrame()
-        for symbol, quote in file.items(): 
+        for symbol in symbols: 
+            quote = file[symbol]
+            
             indexes[0] = indexes[0] + [symbol]*len(fieldnames)
             indexes[1] = indexes[1] + fieldnames
             data = pd.DataFrame(quote[:])
+            if 'open_interest' in data:
+                data.rename(columns = {'open_interest':'oi'}, inplace = True)
+
+
             data['date'] = data['date'].astype('M8[D]')
             data.set_index('date', inplace=True)
+            data = data[fieldnames] 
 
             df = pd.concat([df, data], axis=1)
         df.columns = indexes
+        df.columns.names = (['symbol', 'field'])
         file.close()
-        return df[start:end]
+        return Quotes(df[start:end], type='multiple')
 
     def kibot_contracts_list(self):
         """
@@ -390,10 +387,6 @@ class Instruments(dict):
         )
                 
 
-
-
-
-
     def month_code(self, month):
         """
         선물 월물기호를 숫자(월) 로 반환
@@ -415,17 +408,9 @@ class Instruments(dict):
         return code[month]
     
  
+       
 
 
-
-
-
-        
-
-
-
-            
-                
 
 """
 상품 정보 인스턴스를 생성하여 필요시 호출 후 바로 사용 가능

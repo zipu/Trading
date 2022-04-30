@@ -24,20 +24,20 @@ def rolling_window(arr, window):
     shape = arr.shape[:-1] + (arr.shape[-1] - window + 1, window)
     strides = arr.strides + (arr.strides[-1],)
     return np.lib.stride_tricks.as_strided(arr, shape=shape, strides=strides)
-
-def set_ATR(metrics, span):
-    """
-    Average True Range를 구함
-    metrics: ohlc를 포함한 데이터 프레임
-    metrics 오브젝트에 ATR column를 추가함
-    """
-
-    df = pd.DataFrame()
-    df['hl'] = metrics['high'] - metrics['low']
-    df['hc'] = np.abs(metrics['high'] - metrics['close'].shift(1))
-    df['lc'] = np.abs(metrics['low'] - metrics['close'].shift(1))
-    df['TR'] = df.max(axis=1)
-    metrics['ATR'] = df['TR'].ewm(span).mean()
+#
+#def set_ATR(metrics, span):
+#    """
+#    Average True Range를 구함
+#    metrics: ohlc를 포함한 데이터 프레임
+#    metrics 오브젝트에 ATR column를 추가함
+#    """
+#
+#    df = pd.DataFrame()
+#    df['hl'] = metrics['high'] - metrics['low']
+#    df['hc'] = np.abs(metrics['high'] - metrics['close'].shift(1))
+#    df['lc'] = np.abs(metrics['low'] - metrics['close'].shift(1))
+#    df['TR'] = df.max(axis=1)
+#    metrics['ATR'] = df['TR'].ewm(span).mean()
 
 
 def norm(data, ntype='abs_diff'):
