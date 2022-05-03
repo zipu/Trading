@@ -1,10 +1,10 @@
 #시스템 명
-name: 시스템 이름
+name: tf05
 description: 시스템 설명
 
 #거래시장 정보
-quotes-style: bo 
-instruments: ['AD', 'EC','W','CL','C','LC']
+quotes_style: 'bo'
+instruments: #['AD', 'CL','C','LC']
 from_date: '2000-01-01'
 to_date: ~
 
@@ -28,16 +28,17 @@ indicators:
  - [MIN, window=20]
  - [MAX, window=20]
 
-entry_rule:
- - ema20 < ema200
+entry_rule: 
+ long: ((ma20<ema200) | (ma20<=ema200)) & (ma20<=max20)
+ short: ~
 
 exit_rule: 
- - ema20 > ema200
-
+ long: ma20>ema200 
+ short: ~
 
 stop_rule: 
- - buy: min20
- - sell: max20
+ long: min20 > close
+ short: max20 > high
  
 
 

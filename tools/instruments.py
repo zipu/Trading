@@ -141,8 +141,8 @@ class Instrument:
         """
         if method == 'bo' or method=='so':
             filepath = SRF_ROLLOVER_BO_CSV_PATH
-        elif method == 'bv':
-            filepath = SRF_ROLLOVER_BV_CSV_PATH
+        #elif method == 'bv':
+        #    filepath = SRF_ROLLOVER_BV_CSV_PATH
         elif method == None:
             raise ValueError("roll over metod must be given")
 
@@ -256,17 +256,15 @@ class Instruments(dict):
         return "종목 정보 오브젝트"
     
     
-    def getlist(self, field):
+    def get_symbols(self, *args):
         """
-        field(string) 값을 리스트로 반환
+        kwargs에 들어있는 field 값을 가지고 있는 모든 종목의 심볼 리스트를 반환
         """
-        lists = []
+        lists =[]
         for instrument in self.values():
-            attr = getattr(instrument,field)
-            if attr:
-                lists.append(attr)
-                
-        return tuple(lists)
+            if all(instrument.info[arg] for arg in args):
+                lists.append(instrument.symbol)
+        return lists
 
     def filter(self,ebestall=False, kibotall=False, srfall=False, **kwargs):
         """
@@ -275,14 +273,13 @@ class Instruments(dict):
         ebest 코드 (또는 kibot 코드)가 있는 모든 상품리스트 반환
         ex) filter(symbol='AD', tradable=True) 
         """
+
         lists = []
         instruments = list(self.values())
         if ebestall:
-            #kwargs.pop('ebest')
             instruments = filter(lambda i: i.ebest, instruments)
         
         if kibotall:
-            #kwargs.pop('kibot')
             instruments = filter(lambda i: i.kibot, instruments)
 
         if srfall:
