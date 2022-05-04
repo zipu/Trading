@@ -6,7 +6,6 @@ import pandas as pd
 
 from tools.instruments import instruments
 
-
 class System:
 
     def __init__(self, abstract, quotes):
@@ -72,8 +71,9 @@ class System:
             
             kwargs = ','.join(indicator[1:])
             kwargs = eval(f'dict({kwargs})')
-            lists.append(getattr(quotes, name)(**kwargs))
-        
+            series = getattr(quotes, name)(**kwargs)
+            lists.append(series)
+
         df = pd.concat([self.quotes]+lists, axis=1)
         self.quotes = df.sort_index(axis=1, level=0, sort_remaining=False)
 

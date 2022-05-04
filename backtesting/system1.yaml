@@ -22,18 +22,19 @@ skid: 0.25 # entry price = open + (high-open)*skid for buy order
 
 #매매 규칙
 indicators: 
- - [EMA, window=200]
- - [MA, window=20]
+ #- [EMA, window=200]
+ #- [MA, window=20]
  - [ATR, window=30]
  - [MIN, window=20]
  - [MAX, window=20]
+ #- [ATR, window=100]
 
 entry_rule: 
- long: ((ma20<ema200) | (ma20<=ema200)) & (ma20<=max20)
+ long: ~ #((ma20<ema200) | (ma20<=ema200)) & (ma20<=max20)
  short: ~
 
 exit_rule: 
- long: ma20>ema200 
+ long: ~ #ma20>ema200 
  short: ~
 
 stop_rule: 

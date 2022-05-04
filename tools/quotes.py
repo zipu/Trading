@@ -9,6 +9,8 @@
 import pandas as pd
 import numpy as np
 
+from .datatools import norm
+
 class Quotes(pd.DataFrame):
     """
      일별 상품 정보 (OHLC 등) 클래스로,
@@ -117,6 +119,10 @@ class Quotes(pd.DataFrame):
             df['lc'] = np.abs(self['low'] - self['close'].shift(1))
             #df['TR'] = df.max(axis=1)
             atr = df.max(axis=1).ewm(span=window).mean()
+            
+            #normalization (z-score) - 지난 1년 데이터 기준
+            atr = (atr - atr.rolling(window=250, min_periods= 1).mean())/atr.rolling(window=250, min_periods= 1).std()
+            #atr = norm(atr)
             atr.name = fieldname
             if inplace:
                 self[fieldname] = atr
@@ -132,6 +138,7 @@ class Quotes(pd.DataFrame):
                 df['hc'] = np.abs(quote[symbol, 'high'] - quote[symbol, 'close'].shift(1))
                 df['lc'] = np.abs(quote[symbol, 'low'] - quote[symbol, 'close'].shift(1))
                 atr = df.max(axis=1).ewm(span=window).mean()
+                atr = (atr - atr.rolling(window=200, min_periods= 1).mean())/atr.rolling(window=200, min_periods= 1).std()
                 atr.name = (symbol, fieldname)
                 atrs.append(atr)
             atrs = pd.concat(atrs, axis=1)
@@ -144,7 +151,7 @@ class Quotes(pd.DataFrame):
                 return atrs
 
 
-    def MIN(self, window, ref='close', inplace=False, fieldname=None):
+    def MIN(self, window, ref='low', inplace=False, fieldname=None):
         """
         최근 N일 저가
         """
@@ -173,9 +180,10 @@ class Quotes(pd.DataFrame):
             else:
                 return ind
 
-    def MAX(self, window, ref='close', inplace=False, fieldname=None):
+    def MAX(self, window, ref='high', inplace=False, fieldname=None):
         """
         최근 N일 고가
+        return: data, type
         """
         fieldname = fieldname if fieldname else f'max{window}'
 
