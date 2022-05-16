@@ -5,9 +5,9 @@
 
 """
 import csv, json
-import os
+import os, warnings
 from decimal import Decimal as D
-from datetime import datetime
+#from datetime import datetime
 
 import h5py
 import pandas as pd
@@ -245,16 +245,24 @@ class Instruments(dict):
 
         #종목별 월물리스트 불러오기
         #[symbol, srf, code, from_date, to_date, refreshed_at]
-        with open(SRF_CONTRACTS_JSON_PATH, 'r') as f:
-            contracts = json.load(f)
+        if os.path.exists(SRF_CONTRACTS_JSON_PATH):
+            with open(SRF_CONTRACTS_JSON_PATH, 'r') as f:
+                contracts = json.load(f)
+        else:
+            contracts={}
+            warnings.warn("SRF_CONTRACTS_JSON_PATH 파일이 존재하지 않습니다.")
+
 
         with open(INSTRUMENTS_CSV_PATH, 'r') as file:
             for line in csv.DictReader(file):
                 self[line['symbol']] = Instrument(line, contracts.get(line['symbol']))
 
+        
+    
     def __repr__(self):
         return "종목 정보 오브젝트"
     
+       
     
     def get_symbols(self, *args):
         """

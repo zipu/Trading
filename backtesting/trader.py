@@ -37,14 +37,22 @@ class Trader:
     
     def run(self):
         """
-        프로그램 구동 함수
+        매매 진행
+
         """
         print("매매시작")
-        for date in self.quotes.index:
+        # 매매판단은 전날 데이터를 기준으로 하기때문에, 직전 거래일 날짜인덱스를 인수로 함
+        dates = self.quotes.index
+        for date in dates[1:]:
+            
+            yesterday = dates[dates.get_loc(date) - 1]
+            quote = self.quotes.loc[date]
+
             for system in self.systems:
-                indicators = system.indicators.loc[date]
+                print(f"거래일: {date}, 시스템: {system.name}")
+                system.trade(yesterday, quote)
                 
-        return system.indicators.loc[date]
+        return
 
 
     def add_systems(self, systems):
@@ -66,11 +74,11 @@ class Trader:
                 system['instruments'] = instruments.get_symbols('srf')
         
         
-        for system in systems:
+        for id, system in enumerate(systems):
             quotes = self.quotes[system['instruments']]
             #print(quotes)
             self.systems.append(
-                    System(system, Quotes(quotes, type='multiple'))
+                    System(system, Quotes(quotes, type='multiple'), id)
                 )
         
             #인디케이터 생성

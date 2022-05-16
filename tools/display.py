@@ -6,8 +6,8 @@ from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-from matplotlib.ticker import Formatter,FormatStrFormatter
+#import matplotlib.dates as mdates
+from matplotlib.ticker import Formatter, FormatStrFormatter
 
 
 
@@ -136,39 +136,48 @@ def oi_chart(ax, quotes, period='day', linewidth=1, colors=['k','k'], background
     ax.set_facecolor('lightgoldenrodyellow')
     ax.yaxis.set_major_formatter(FormatStrFormatter('%d k'))
     ax.yaxis.tick_right()
-    ax.set_title('Open interest', x=0.06, y=1.0, pad=-14)
+    ax.set_title('Open interest', loc='left')
     
     return ax
 
-def indicator_chart(ax, quotes, linewidth=1):
+def indicator_chart(ax, quotes,name, linewidth=1):
+    """
+    지표 차트
+    """
     dates = np.array(range(len(quotes.index)))
     
     if isinstance(quotes, pd.Series):
-        ax.plot(dates, quotes)
+        ax.plot(dates, quotes, label=name)
     
     else:
         for column in quotes.columns:
             ax.plot(dates, quotes[column])
     
-    
+    ax.legend(loc=2)
     return ax
 
 def index_chart(ax, quotes, name, color='purple'):
+    """
+    인덱스 차트: 별도의 plot에 생성
+    """
     dates = np.array(range(len(quotes.index)))
 
     if isinstance(quotes, pd.Series):
-        ax.plot(dates, quotes, color=color)
+        ax.plot(dates, quotes, color=color, label=name)
     
     else:
         for column in quotes.columns:
             ax.plot(dates, quotes[column], color=color)
 
+    #legend
+    ax.legend(loc=2)
+    
     #style
     ax.grid(linestyle='--')
     ax.set_facecolor('lightgoldenrodyellow')
     ax.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
     ax.yaxis.tick_right()
-    ax.set_title(name, x=0.03, y=1.0, pad=-14)
+    #ax.set_title(name, x=0.03, y=1.0, pad=-14)
     
     return ax
 
@@ -177,30 +186,23 @@ def index_chart(ax, quotes, name, color='purple'):
 
 
 def view(data, period='day', size=(10,6), colors=['k','k'],\
-         indicators=None, title='OHLC Chart'):
+         metrics=None, title='OHLC Chart'):
     """
     pandas dataframe 의 일데이터를 차트로 그려주는 함수
     data: 일 데이터
     """
-    indicator_types={
-        'price': ['ema','ma','max','min'],
-        'index': ['atr'],
-        'signal': ['enter_long','exit_long','enter_short','exit_short','stop_long','stop_short']
-    }
-
-    has_indicator = True if indicators is not None else None
+    has_metrics = True if metrics is not None else None
     
     # 에러: indicator와 data가 매칭이 안되면 에러
-    if has_indicator and not (data.index == indicators.index).all():
+    if has_metrics and not (data.index == metrics.index).all():
         raise ValueError("일봉 데이터와 지표 데이터가 매칭 되지 않습니다 ")
     
     # figure의 grid 결정 (plot 갯수 확인)
     # index 타입인 indicator의 갯수만큼 axes 를 늘림
     cnt = 0
-    if has_indicator:
-        for name in indicators.columns:
-            if re.sub(pattern=r"\d", repl=r"", string=name) in indicator_types['index']:
-                cnt+=1
+    if has_metrics:
+        indicator_type = metrics.attrs['type']
+        cnt += len(['flag' for v in indicator_type.values() if v == 'index'])
 
     # x축 format을 datetime 형식으로 할 경우 거래가 없는 주말에 빈공간으로 나옴. 
     # 따라서 index를 integer 형식으로 나타낸 후, 해당 숫자에 해당하는 날짜로 x축 
@@ -216,22 +218,31 @@ def view(data, period='day', size=(10,6), colors=['k','k'],\
 
    
     ohlc_chart(ohlc_axes, data, period=period, colors=colors)
-    oi_chart(oi_axes, data['oi'], period=period, colors=colors)
+    
+    # 컬럼 명을 두종류를 사용해서 종종 문제가 됨.. 언젠간 해결해야.
+    if 'open_interest' in data.columns:
+        oi = 'open_interest'
+    elif 'oi' in data.columns:
+        oi = 'oi'
+    
+    oi_chart(oi_axes, data[oi], period=period, colors=colors)
 
-    if has_indicator:
-        quotes = indicators
+    if has_metrics:
+        indicator_type = metrics.attrs['type']
+        
         cnt=0
-        for name in quotes.columns:
-            if re.sub(pattern=r"\d", repl=r"", string=name) in indicator_types['price']:
+        for name in metrics.columns:
+            if indicator_type[name] == 'price':
                 ind_axes = ax[0]
-                indicator_chart(ind_axes, quotes[name])
+                indicator_chart(ind_axes, metrics[name], name)
 
-            elif re.sub(pattern=r"\d", repl=r"", string=name) in indicator_types['index']:
+            elif indicator_type[name] == 'index':
                 index_axes = ax[2+cnt]
-                index_chart(index_axes, quotes[name], name)
+                index_chart(index_axes, metrics[name], name)
                 cnt += 1
         
     
-    ohlc_axes.set_title(title)
-    #fig.autofmt_xdate()
+    ohlc_axes.set_title(title, loc='left')
+    fig.autofmt_xdate()
+    plt.close()
     return fig

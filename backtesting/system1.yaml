@@ -3,34 +3,41 @@ name: tf05
 description: 시스템 설명
 
 #거래시장 정보
-quotes_style: 'bo'
-instruments: #['AD', 'CL','C','LC']
+quotes_style: bo
+sectors: pre-defined
+instruments: ['AD', 'CL','C','LC']
 from_date: '2000-01-01'
 to_date: ~
 
 
-# 투자 원금 및 리스크 관리
+# 투자 원금
 principal: 100000 # 단위(dollar)
-heat_system: 0.05 #최대 허용 손실 비율
-heat_sector: Null
-heat_trade: 0.01
+
+
+# 리스크 설정
+heat_system: DefaultHeat
+max_system_heat: 0.2 #최대 허용 손실 비율
+max_sector_heat: Null 
+max_trade_heat: 0.01 #매매당 최대 허용 손실 비율
 max_lots: 3 #매매당 최대 계약수
 
 #매매환경
 commission: 2.99 #수수료(dollar)
 skid: 0.25 # entry price = open + (high-open)*skid for buy order
 
-#매매 규칙
-indicators: 
+#지표
+metrics: 
+ # - [name, metric, params]
  #- [EMA, window=200]
- #- [MA, window=20]
- - [ATR, window=30]
- - [MIN, window=20]
- - [MAX, window=20]
+ - [ma20, MA, window=20]
+ - [ma200, MA, window=200]
+ - [volatility, ATR, window=30]
+ - [min20, MIN, window=20]
+ - [max20, MAX, window=20]
  #- [ATR, window=100]
 
 entry_rule: 
- long: ~ #((ma20<ema200) | (ma20<=ema200)) & (ma20<=max20)
+ long:  (ma200>ma20) | (close>min20) 
  short: ~
 
 exit_rule: 
@@ -38,8 +45,8 @@ exit_rule:
  short: ~
 
 stop_rule: 
- long: min20 > close
- short: max20 > high
+ long: min20
+ short: ma200
  
 
 
