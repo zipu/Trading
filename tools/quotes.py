@@ -23,6 +23,12 @@ class Quotes(pd.DataFrame):
         super().__init__(data) 
         self.type = type
 
+        #metric 값들의 형식을 저장 (plotting 용도로 사용)
+        self.attrs['metric_types'] = {
+            'price': ['EMA','MA','MAX','MIN'],
+            'index': ['ATR']
+        }
+
         #if 'open_interest' in self.columns:
         #    self.rename(columns = {'open_interest':'oi'}, inplace = True)
         #

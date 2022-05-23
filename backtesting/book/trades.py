@@ -1,89 +1,275 @@
-from .book import Book
+from signal import raise_signal
+from site import setcopyright
+from unicodedata import name
+from tools.instruments import instruments
+#from .book import Book
 
 LONG = 1
 SHORT = -1
 
-class Trades:
+class Trade:
+    """
+    개별 매매 기록
+    """
+    def __init__(self, id, entrydate, name, symbol, sector, position, entryprice\
+        ,entrylots, stopprice, entryrisk, entryrisk_ticks, commission):
+        
+        # 진입 정보
+        self.id = id
+        self.entrydate = entrydate
+        self.name = name
+        self.symbol = symbol
+        self.sector = sector
+        self.position = position
+        self.entryprice = entryprice
+        self.entrylots = entrylots
+        self.entryrisk = entryrisk
+        self.entryrisk_ticks = entryrisk_ticks
+        self.commission = commission
+
+        #청산 정보
+        self.exits = []
+        """
+        exit = {
+            'exittype': exit or stop, 
+            'exitdate': datetime,
+            'exitprice': price,
+            'exitlot': integer,
+            'profit': value,
+            'profit_tick': integer,
+            'duration': days,
+            'result': WIN or LOSE
+        }
+        """
+
+        #상태 정보
+        self.currentprice = None
+        self.stopprice = stopprice
+        self.risk = None
+        self.risk_ticks = None
+        self.lots = entrylots
+        self.flame = 0 #평가손익
+        self.profit = 0 #확정손익
+        self.duration = 0 #보유기간
+        self.exittype = '' #청산 종류
+        self.result = ''
+        self.on_fire = True
+
+        
+        self.update_status(entryprice, stopprice)
+
+    
+    def add_exit(self, exitdate, exitprice, exitlots, exittype):
+
+        profit, profit_ticks = self.price_to_value(
+            self.symbol, self.position, self.entryprice, exitprice, exitlots)
+
+        exit = {
+            'exittype': exittype, 
+            'exitdate': exitdate,
+            'exitprice': exitprice,
+            'exitlots': exitlots,
+            'profit': profit,
+            'profit_tick': profit_ticks,
+            'duration': (exitdate - self.entrydate).days,
+            'result': 'WIN' if profit>0 else 'LOSE'
+        }
+        self.exits.append(exit)
+        
+        self.update_status(exitprice, self.stopprice)
+
+    
+    def update_status(self, currentprice, stopprice):
+        """ 매매 상태 업데이트 """
+        self.currentprice = currentprice
+        self.stopprice = stopprice
+
+        self.risk, self.risk_ticks = self.price_to_value(
+            self.symbol, self.position, currentprice, stopprice, self.lots)
+        
+        self.flame, _ = self.price_to_value(
+            self.symbol, self.position, currentprice, self.entryprice, self.lots)
+
+        self.profit = sum([exit['profit'] for exit in self.exits])
+        self.lots = self.entrylots - sum([exit['exitlots'] for exit in self.exits])
+
+        if self.lots < 0:
+            raise ValueError(f"청산 계약수가 진입 계약수보다 많습니다: {self.id}")
+        
+        if self.lots == 0:
+            self.on_fire = False
+            self.duration = self.exits[-1]['duration'] if self.exits else 0
+            self.result = 'WIN' if self.profit > 0 else 'LOSE'
+            self.exittype = self.exits[-1]['exittype'] if self.exits else ''
+    
+    
+    def price_to_value(self, symbol, position, initial_price, final_price, lots):
+        """
+        상품 가격 차이로부터 가치를 계산
+        """
+        tickunit = instruments[symbol].tickunit
+        tickvalue = instruments[symbol].tickvalue
+        value_ticks = round(position*(initial_price-final_price)/tickunit)
+        value = value_ticks * tickvalue * lots
+
+        return value, value_ticks
+
+
+class TradesBook:
     """
     개별 매매기록
     """
     def __init__(self, system_id):
         self.system_id = system_id
-        self.book = Book(name='trades')
+        self.book = [] #전체 매매 리스트
+        self.fires = [] #진행중인 매매 리스트
 
-        # 진입정보
-        #self.entrydate = statement['entrydate']
-        #self.symbol = statement['symbol']
-        #self.position = statement['position']
-        #self.entryprice = statement['entryprice']
-        #self.entrylots = statement['entrylots']
-        #self.stopprice = statement['stopprice']
-        #self.risk = statement['risk']
-        #self.risk_tick = statement['risk_ticks']
-#
-        ##청산정보
-        #self.exitdates  = []
-        #self.exitlots = []
-        #self.exitprices =[]
-        #
-        ##상태 및 결과
-        #self.current_lots = self.entrylots
-        #self.profits = []
-        #self.profits_tick = []
-        #self.duration = 0
-        #self.is_open = True
-        #self.description = ''
+        # 누적 상태 정보
+        #self.profit = 0
+        #self.margin = 0
 
+        # 매매 문서 형식
+        
+        #self.profit = 0
+        #self.flame = 0
+        #self.margin = 0
+        #self.risk = 0
+        #self.commission = 0
+
+
+    @property
+    def profit(self):
+        """ 확정매매수익 """
+        return sum([trade.profit for trade in self.book])
+
+    @property
+    def flame(self):
+        """ 평가손익(flame) """
+        fires = self.get_on_fires()
+        return sum([fire.flame for fire in fires])
+
+    @property
+    def margin(self):
+        """ 증거금 합산 """
+        fires = self.get_on_fires()
+        return sum([instruments[fire.symbol].margin * fire.lots for fire in fires])
+
+    @property
+    def risk(self):
+        """ 총 리스크 """
+        fires = self.get_on_fires()
+        return sum([fire.risk for fire in fires])
+
+    @property
+    def commission(self):
+        """ 누적 수수료 """
+        return sum([trade.commission for trade in self.book])
+        
+
+    def log(self, **kwargs):
+        items = []
+        for trade in self.book:
+            item = {
+            'id':trade.id,
+            'entrydate': trade.entrydate,
+            'name':trade.name,
+            'symbol':trade.symbol,
+            'sector':trade.sector,
+            'position':trade.position,
+            'entryprice':trade.entryprice,
+            'entrylots':trade.entrylots,
+            'entryrisk':trade.entryrisk,
+            'entryrisk_ticks':trade.entryrisk_ticks,
+            'exits':trade.exits,
+            'currentprice':trade.currentprice,
+            'stopprice':trade.stopprice,
+            'risk':trade.risk,
+            'risk_ticks':trade.risk_ticks,
+            'lots':trade.lots,
+            'flame':trade.flame,
+            'profit':trade.profit,
+            'duration':trade.duration,
+            'exittype':trade.exittype,
+            'result':trade.result,
+            'on_fire':trade.on_fire
+            }
+
+            if all([item[k]==v for k,v in kwargs.items()]):
+                items.append(item)
+        return items
+
+        
+    
     def get(self, **kwargs):
-        return self.book.get(kwargs)
+        items = []
 
+        for trade in self.book:
+            if all(getattr(trade, k) == v for k,v in kwargs.items()):
+                items.append(trade)
+        return items
+      
 
     def get_on_fires(self):
-        return self.book.get(on_fire=True)
-
-    def add_entry(self, entrydate, symbol, sector, position, entryprice, entrylots, entryrisk):
-        statement = {
-            #진입 정보
-            'entrydate': entrydate,
-            'symbol': symbol,
-            'sector': sector,
-            'position': position,
-            'entryprice': entryprice,
-            'entrylots': entrylots,
-            'entryrisk': entryrisk,
-            #청산정보
-            'exitdates': [],
-            'exitlots': [],
-            'profit': [],
-            'profit_ticks': [],
-            'duration': 0,
-            'on_fire': True,
-            'result': [],
-
-            #상태정보
-            'risk':entryrisk,
-            'lots': 0,
-        }
-
-        self.book.write(statement)
+        return self.fires
+          
+    
+    def add_entry(self, entrydate, symbol, sector, position, entryprice, entrylots, stopprice, commission,\
+                  entryrisk, entryrisk_ticks):
         
-
-    def add_exit(self, fire, exitdate, exitprice, exitlots, profit, profit_ticks, result=None):
-        fire['exitdates'].append(exitdate)
-        fire['exitprice'].append(exitprice)
-        fire['exitlots'].append(exitlots)
-        fire['profit'].append(profit)
-        fire['profit_ticks'].append(profit_ticks)
-        fire['lots'] = fire['entrylots'] - sum(fire['exitlots'])
-
-        if result:
-            fire['result'].append(result)
-
-
-        if fire['lots'] < 0:
-            raise ValueError(f"청산 계약수가 진입 계약수보다 많습니다: {fire}")
-
-        elif fire['lots'] == 0:
-            fire['on_fire'] = False #매매종료
+        #risk, risk_ticks = self.price_to_value(symbol, position, entryprice, stopprice, entrylots)
+        if entryrisk < 0:
+            raise ValueError(f"Risk must be positive: {entrydate},{symbol},{position},{entryprice},{stopprice}")
         
-        
+        trade = Trade(
+            id = len(self.book)+1,
+            entrydate = entrydate,
+            name = instruments[symbol].name,
+            symbol = symbol,
+            sector = sector,
+            position = position,
+            entryprice = entryprice,
+            entrylots = entrylots,
+            entryrisk = entryrisk,
+            entryrisk_ticks = entryrisk_ticks,
+            commission = commission,
+            stopprice = stopprice,
+        )
+
+        self.book.append(trade)
+        self.fires.append(trade)
+       
+
+    def add_exit(self, fire, exitdate, exitprice, exitlots, exittype):
+        """
+        청산 기록 
+        """
+        fire.add_exit(exitdate, exitprice, exitlots, exittype)
+        if not fire.on_fire:
+            self.fires.pop(self.fires.index(fire))
+       
+
+    def reject(self, symbol, entrydate, sector, position, entryprice):
+        trade = Trade(
+            id = len(self.book)+1,
+            entrydate = entrydate,
+            name = instruments[symbol].name,
+            symbol = symbol,
+            sector = sector,
+            position = position,
+            entryprice = entryprice,
+            entrylots = 0,
+            entryrisk = 0,
+            entryrisk_ticks = 0,
+            commission = 0,
+            stopprice = 0,
+        )
+        trade.on_fire = False
+        trade.result = 'REJECT'
+
+        self.book.append(trade)
+
+
+    def update_status(self, fire, currentprice, stopprice):
+        fire.update_status(currentprice, stopprice)
+    
+    

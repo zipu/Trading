@@ -4,7 +4,8 @@
 시장은 예측 불가능하기 때문에 수학적으로 최적화 할 수 없으나
 자금 관리는 최적화가 (어느정도) 가능하기 때문에 트레이딩에 있어서 가장 중요한 팩터중 하나임 
 """
-from .book import Book
+from tools.instruments import instruments
+#from .book import Book
 
 
 class DefaultHeat:
@@ -23,23 +24,60 @@ class DefaultHeat:
         self.max_trade_heat = max_trade_heat
         self.max_lots = max_lots
         
-        self.book = Book(name='DafaultHeat')
-        self.system_heat = 0
-        self.sector_heat = {}
+    def system_heat(self, status):
+        return  status.risk/status.capital
 
-
-    def system_heat(self, asset, fires):
-        return sum([fire['risk'] for fire in fires]) / asset.capital
-
-    def sector_heat(self, asset, fires):
-        sector_risk = {fire['sector']:0 for fire in fires}
+    def sector_heat(self, status, fires):
+        sector_risk = {fire.sector:0 for fire in fires}
         for fire in fires:
-            sector_risk[fire['sector']] += fire['risk']
+            sector_risk[fire.sector] += fire.risk
         
-        sector_heat = {k:v/asset.capital for k,v in sector_risk.items()}
-        return sector_risk, sector_heat
+        sector_heat = {k:v/status.capital for k,v in sector_risk.items()}
+        return sector_heat, sector_risk
 
-    def risk_calculator(self, asset, order):
+    def calc_lots(self, symbol, sector, risk_ticks, status):
+        # 1계약 기준 리스크
+        risk = risk_ticks*instruments[symbol].tickvalue
+        
+        # 바운더리
+        capital = status.capital
+        
+        max_system_risk = capital * self.max_system_heat
+        max_sector_risk = capital * self.max_sector_heat
+        max_trade_risk = capital * self.max_trade_heat
+        
+        #현재 섹터 리스크
+        if status.sector_risk.get(sector):
+            sector_risk = status.sector_risk[sector]
+        else:
+            sector_risk = 0
+        
+        if risk + status.risk > max_system_risk:
+            return 0
+        else:
+            lots_system = int((max_system_risk - status.risk)/risk) 
+
+        if risk + sector_risk > max_sector_risk:
+            return 0
+        else:
+            lots_sector = int((max_sector_risk - sector_risk)/risk)
+
+        if risk > max_trade_risk:
+            return 0
+        else:
+            lots_trade = int(max_trade_risk/risk)
+
+        return min([lots_system, lots_sector, lots_trade, self.max_lots])
+
+        
+
+        
+
+        
+
+        
+        
+        
         
         
         

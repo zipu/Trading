@@ -22,7 +22,7 @@ class Book:
         """ 기록 """
         
         self.id += 1
-        statement[id] = self.id
+        statement['id'] = self.id
         self.statements.append(statement)
 
     def update(self, statement):

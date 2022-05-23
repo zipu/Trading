@@ -1,3 +1,3 @@
-from .trades import Trades
+from .trades import TradesBook
 from .heat import DefaultHeat
-from .status import Status
+from .equity import EquityBook
