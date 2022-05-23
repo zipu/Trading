@@ -13,7 +13,9 @@ from matplotlib.ticker import FuncFormatter
 import matplotlib.pyplot as plt
 
 from tools.instruments import instruments
-from .book import TradesBook, EquityBook, DefaultHeat
+from .trades import TradesBook
+from .equity import EquityBook
+from .heat import DefaultHeat
 
 LONG = 1
 SHORT = -1
@@ -211,11 +213,12 @@ class System:
 
             else:
                 if fire.position == LONG:
-                    stopprice = self.signals.loc[today][symbol]['stop_long']
+                    stopprice = self.signals.loc[today][fire.symbol]['stop_long']
                 elif fire.position == SHORT:
-                    stopprice = self.signals.loc[today][symbol]['stop_short']
+                    stopprice = self.signals.loc[today][fire.symbol]['stop_short']
 
                 fire.stopprice == stopprice
+                fire.update_status(quote[fire.symbol]['close'], stopprice)
 
         if self.equity.update(today, self.trades, self.heat):
             return True #시스템 가동 중단
@@ -443,17 +446,17 @@ class System:
         x = equity.index.values
         capital = equity.capital.values
         fixed_capital = equity.fixed_capital.values
-        principal = (capital - equity.profit).values #매매직전원금
+        principal = (capital - equity.flame).values #매매직전원금
         max_capital = equity.max_capital.values
         p = self.principal #투자원금
 
-        fig, ax = plt.subplots(1,1, figsize=(15, 8))
+        fig, ax = plt.subplots(1,1, figsize=(15, 12))
         ax.fill_between(x, p, fixed_capital, where=fixed_capital>=p, facecolor='green', alpha=0.4, interpolate=True, label='fixed_capital')
         ax.fill_between(x, p, fixed_capital, where=fixed_capital<p, facecolor='red', alpha=0.6, interpolate=True)
         ax.fill_between(x, capital, max_capital, color='grey', alpha=0.2)
 
-        ax.plot(x, principal, color='orange',alpha=0.7, linewidth=1, label='capital')
-        ax.plot(x, capital, color='black',alpha=0.7, linewidth=1)
+        ax.plot(x, principal, color='black',alpha=0.7, linewidth=1)
+        ax.plot(x, capital, color='orange',alpha=0.7, linewidth=1, label='capital')
 
         ax.set_xlim([x.min(), x.max()])
 
@@ -562,10 +565,11 @@ class System:
         #del df.index.name
         #styling
         df = df.style.format({
-                    '평균손익': "{:.2f}",
+                    '총손익': "{:.0f}",
+                    '평균손익': "{:.0f}",
                     '표준편차': "{:.2f}",
                     '위험대비손익': "{:.2%}",
-                    '승률': "{:.2%}",
+                    '승률': "{:.1%}",
                     #'# trades': "{:.f}"
                 })
         return df

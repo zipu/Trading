@@ -78,11 +78,14 @@ class Trade:
         
         self.update_status(exitprice, self.stopprice)
 
+        return profit
     
     def update_status(self, currentprice, stopprice):
         """ 매매 상태 업데이트 """
         self.currentprice = currentprice
         self.stopprice = stopprice
+
+        self.lots = self.entrylots - sum([exit['exitlots'] for exit in self.exits])
 
         self.risk, self.risk_ticks = self.price_to_value(
             self.symbol, self.position, currentprice, stopprice, self.lots)
@@ -91,7 +94,7 @@ class Trade:
             self.symbol, self.position, currentprice, self.entryprice, self.lots)
 
         self.profit = sum([exit['profit'] for exit in self.exits])
-        self.lots = self.entrylots - sum([exit['exitlots'] for exit in self.exits])
+        
 
         if self.lots < 0:
             raise ValueError(f"청산 계약수가 진입 계약수보다 많습니다: {self.id}")
@@ -130,17 +133,13 @@ class TradesBook:
 
         # 매매 문서 형식
         
-        #self.profit = 0
-        #self.flame = 0
+        self.profit = 0
+        self.commission = 0
+        self._flame = 0
         #self.margin = 0
         #self.risk = 0
         #self.commission = 0
 
-
-    @property
-    def profit(self):
-        """ 확정매매수익 """
-        return sum([trade.profit for trade in self.book])
 
     @property
     def flame(self):
@@ -160,11 +159,6 @@ class TradesBook:
         fires = self.get_on_fires()
         return sum([fire.risk for fire in fires])
 
-    @property
-    def commission(self):
-        """ 누적 수수료 """
-        return sum([trade.commission for trade in self.book])
-        
 
     def log(self, **kwargs):
         items = []
@@ -237,13 +231,15 @@ class TradesBook:
 
         self.book.append(trade)
         self.fires.append(trade)
+        self.commission += commission
        
 
     def add_exit(self, fire, exitdate, exitprice, exitlots, exittype):
         """
         청산 기록 
         """
-        fire.add_exit(exitdate, exitprice, exitlots, exittype)
+        profit = fire.add_exit(exitdate, exitprice, exitlots, exittype)
+        self.profit += profit
         if not fire.on_fire:
             self.fires.pop(self.fires.index(fire))
        

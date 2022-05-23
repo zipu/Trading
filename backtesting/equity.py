@@ -16,7 +16,8 @@ class Equity:
         self.cash=None
         self.security=None
         self.fixed_capital=None
-        self.profit=None
+        self.profit=None #누적확정손익
+        self.flame=None #평가손익
         self.commission = None
 
         self.system_heat = None
@@ -43,7 +44,8 @@ class EquityBook:
         self.cash=principal
         self.security=0
         self.fixed_capital=0
-        self.profit=0
+        self.profit=0 #누적손익
+        self.flame = 0 #평가손익
         self.commission = 0
 
         self.max_capital = principal
@@ -78,6 +80,7 @@ class EquityBook:
             'cash':equity.cash,
             'fixed_capital':equity.fixed_capital,
             'profit':equity.profit,
+            'flame': equity.flame,
             'risk':equity.risk,
             'system_heat':equity.system_heat,
             'sector_heat':equity.sector_heat,
@@ -110,6 +113,7 @@ class EquityBook:
 
         #매매 성능
         equity.profit = trades.profit
+        equity.flame = trades.flame
         equity.commission = trades.commission
         equity.risk = trades.risk
         equity.system_heat = heat.system_heat(equity)
@@ -141,6 +145,7 @@ class EquityBook:
         self.security=equity.security
         self.fixed_capital=equity.fixed_capital
         self.profit=equity.profit
+        self.flame=equity.flame
         self.commission = equity.commission
 
         self.system_heat = equity.system_heat

@@ -5,8 +5,6 @@
 자금 관리는 최적화가 (어느정도) 가능하기 때문에 트레이딩에 있어서 가장 중요한 팩터중 하나임 
 """
 from tools.instruments import instruments
-#from .book import Book
-
 
 class DefaultHeat:
     """ 
