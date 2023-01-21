@@ -129,8 +129,9 @@ def oi_chart(ax, quotes, period='day', linewidth=1, colors=['k','k'], background
     oi = quotes.values /1000
     
     #drawing
-    ax.vlines(dates, 0, oi, linewidth=linewidth, color='k')
-    
+    #ax.vlines(dates, 0, oi, linewidth=linewidth, color='k')
+    ax.plot(dates, oi, linewidth=linewidth, color='k')
+
     #style
     ax.grid(linestyle='--')
     ax.set_facecolor('lightgoldenrodyellow')
@@ -140,7 +141,7 @@ def oi_chart(ax, quotes, period='day', linewidth=1, colors=['k','k'], background
     
     return ax
 
-def indicator_chart(ax, quotes,name, linewidth=1):
+def metrics_chart(ax, quotes,name, linewidth=1):
     """
     지표 차트
     """
@@ -201,6 +202,7 @@ def view(data, period='day', size=(10,6), colors=['k','k'],\
     # index 타입인 indicator의 갯수만큼 axes 를 늘림
     cnt = 0
     if has_metrics:
+        #cnt = sum([1 for i in metrics.attrs['type'].values() if i == 'index'])
         indicator_type = metrics.attrs['type']
         cnt += len(['flag' for v in indicator_type.values() if v == 'index'])
 
@@ -234,7 +236,7 @@ def view(data, period='day', size=(10,6), colors=['k','k'],\
         for name in metrics.columns:
             if indicator_type[name] == 'price':
                 ind_axes = ax[0]
-                indicator_chart(ind_axes, metrics[name], name)
+                metrics_chart(ind_axes, metrics[name], name)
 
             elif indicator_type[name] == 'index':
                 index_axes = ax[2+cnt]

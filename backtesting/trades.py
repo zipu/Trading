@@ -70,7 +70,7 @@ class Trade:
             'exitprice': exitprice,
             'exitlots': exitlots,
             'profit': profit,
-            'profit_tick': profit_ticks,
+            'profit_ticks': profit_ticks,
             'duration': (exitdate - self.entrydate).days,
             'result': 'WIN' if profit>0 else 'LOSE'
         }
@@ -94,6 +94,7 @@ class Trade:
             self.symbol, self.position, currentprice, self.entryprice, self.lots)
 
         self.profit = sum([exit['profit'] for exit in self.exits])
+        self.profit_ticks = sum([exit['profit_ticks'] for exit in self.exits])
         
 
         if self.lots < 0:
@@ -112,7 +113,7 @@ class Trade:
         """
         tickunit = instruments[symbol].tickunit
         tickvalue = instruments[symbol].tickvalue
-        value_ticks = round(position*(initial_price-final_price)/tickunit)
+        value_ticks = round(position*(final_price-initial_price)/tickunit)
         value = value_ticks * tickvalue * lots
 
         return value, value_ticks
@@ -133,8 +134,8 @@ class TradesBook:
 
         # 매매 문서 형식
         
-        self.profit = 0
-        self.commission = 0
+        self.profit = 0 #누적 수익
+        self.commission = 0 #누적 수수료
         self._flame = 0
         #self.margin = 0
         #self.risk = 0
@@ -166,15 +167,17 @@ class TradesBook:
             item = {
             'id':trade.id,
             'entrydate': trade.entrydate,
+            'exitdate': trade.exits[-1]['exitdate'] if not trade.on_fire else None,
             'name':trade.name,
             'symbol':trade.symbol,
             'sector':trade.sector,
-            'position':trade.position,
+            'position':'Long' if trade.position==1 else 'Short',
             'entryprice':trade.entryprice,
             'entrylots':trade.entrylots,
             'entryrisk':trade.entryrisk,
             'entryrisk_ticks':trade.entryrisk_ticks,
             'exits':trade.exits,
+            '#exits':len(trade.exits),
             'currentprice':trade.currentprice,
             'stopprice':trade.stopprice,
             'risk':trade.risk,
@@ -182,6 +185,7 @@ class TradesBook:
             'lots':trade.lots,
             'flame':trade.flame,
             'profit':trade.profit,
+            'profit_ticks':trade.profit_ticks,
             'duration':trade.duration,
             'exittype':trade.exittype,
             'result':trade.result,
@@ -203,8 +207,16 @@ class TradesBook:
         return items
       
 
-    def get_on_fires(self):
-        return self.fires
+    def get_on_fires(self, **kwargs):
+        if kwargs:
+            fires = []
+            for fire in self.fires:
+                if all(getattr(fire, k) == v for k,v in kwargs.items()):
+                    fires.append(fire)
+
+            return fires
+        else:
+            return self.fires
           
     
     def add_entry(self, entrydate, symbol, sector, position, entryprice, entrylots, stopprice, commission,\

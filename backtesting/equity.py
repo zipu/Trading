@@ -101,7 +101,7 @@ class EquityBook:
         self.book.append(equity)
         
         #자산 정보
-        equity.capital = self.principal + trades.profit + trades.flame
+        equity.capital = self.principal + trades.profit + trades.flame - trades.commission
         if equity.capital <= 0:
             """ 시스템 작동 중단"""
             return True 

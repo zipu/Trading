@@ -88,261 +88,37 @@ class System:
         self.signals.attrs['name'] = self.name
 
         self.entry_rule = abstract['entry_rule']
-        self.create_signal(self.entry_rule['long'], 'enter_long', quotes)
-        self.create_signal(self.entry_rule['short'], 'enter_short', quotes)
+        if self.entry_rule['long']:
+            self.create_signal(self.entry_rule['long'], 'enter_long', quotes)
+        
+        if self.entry_rule['short']:
+            self.create_signal(self.entry_rule['short'], 'enter_short', quotes)
         
         self.exit_rule = abstract['exit_rule']
-        self.create_signal(self.exit_rule['long'], 'exit_long', quotes)
-        self.create_signal(self.exit_rule['short'], 'exit_short', quotes)
+        if self.exit_rule['long']:
+            self.create_signal(self.exit_rule['long'], 'exit_long', quotes)
+        if self.exit_rule['short']:
+            self.create_signal(self.exit_rule['short'], 'exit_short', quotes)
 
 
         self.stop_rule = abstract['stop_rule']
-        self.create_stops(self.stop_rule['long'], 'stop_long', quotes)
-        self.create_stops(self.stop_rule['short'], 'stop_short', quotes)
+        if self.stop_rule['long']:
+            self.create_stops(self.stop_rule['long'], 'stop_long', quotes)
+        if self.stop_rule['short']:
+            self.create_stops(self.stop_rule['short'], 'stop_short', quotes)
 
-        # 특정 날짜에 ohlc 값은 없는데(NaN) 지표와 시그널은 Averaging 되므로 있을 수 있음
-        # 이를 NaN값으로 변경해 줌
+        # OHLC 데이터 없는날, index type등 처리
+        self.compensate_signals(quotes)
 
-        self.set_nans(self.metrics, quotes)
-        self.set_nans(self.signals, quotes)
-
-        self.signals.index = self.signals.index.astype('M8[ns]')
-
+        #self.set_nans(self.metrics, quotes)
+        #self.set_nans(self.signals, quotes)
 
 
     def __repr__(self):
         return f"<<시스템: {self.name}>>"
 
-    
-    def trade(self, quote):
-        """
-        * 매매 진행
-        yesterday: 전거래일(yesterday) 장 종료 후 매매여부 판단 후
-        quote: 오늘 날짜의 quote 가격으로 매매 진행 
-        
-        %% 매매시 고려 사항 및 진행 순서 %%
-        1. 진행중인 매매가 있는가?
-            Yes -> 청산신호 발생? Yes -> 청산
-                                 No -> pass
-            No -> pass
-
-        2. 신규진입 시그널이 있는가?
-            No -> pass
-            Yes -> heat 계산 -> 계약수 결정 -> 매매진입 -> heat 갱신
-        """
-        today = quote.name
-        datesindex = self.metrics.index
-        yesterday = datesindex[datesindex.get_loc(today) - 1]
-        
-        # 전일 장 종료 후 시그널로 매매 여부 판단
-        signals = self.signals.loc[yesterday]
-
-        """
-        1. 거래 가능 상품 선별
-          
-          상품마다 특정 날짜에 데이터가 존재하지 않을 수 있음
-          이 경우 해당 상품의 당일 시그널이 전일 시그널이 같도록 변경하고 거래 상품 목록에서 제외
-        """
-        symbols = []
-        for symbol in self.symbols:
-            ohlc = quote[symbol][['open','high','low','close']]
-
-            if ohlc.isna().any():
-                self.signals.loc[today, symbol] = self.signals.loc[yesterday, symbol].values
-            else:
-                symbols.append(symbol)
-
-        """
-        2. 진행 중인 매매 청산
-
-          진행중인 매매 상품 중 당일 거래 가능하면, 전일 청산 신호가 발생 했을 시 시초가 + skid 에 청산
-        """
-        
-        #진행중인 매매목록
-        fires = self.trades.get_on_fires() 
-        fires = [fire for fire in fires if fire.symbol in symbols]
-        
-        for fire in fires:
-            symbol = fire.symbol
-            if fire.position == LONG and signals[symbol]['exit_long']:
-                self.exit(fire, quote[symbol], type='exit')
-                #자산 상태 업데이트
-                if self.equity.update(today, self.trades, self.heat):
-                  return True #시스템 가동 중단
-
-            elif fire.position == SHORT and signals[symbol]['exit_short']:
-                self.exit(fire, quote[symbol], type='exit')
-                #자산 상태 업데이트
-                if self.equity.update(today, self.trades, self.heat):
-                    return True #시스템 가동 중단
-        
-        
-        """
-        3. 매매 진입
-
-          전일 진입 신호 발생시, 시초가(+skid) 진입
-        """
-        for symbol in symbols:
-            if signals[symbol]['enter_long'] == True:
-                #stopprice = signals_today[symbol]['stop_long']
-                self.enter(symbol, quote[symbol], LONG)
-                if self.equity.update(today, self.trades, self.heat):
-                    return True #시스템 가동 중단
-                
-            elif signals[symbol]['enter_short'] == True:
-                #stopprice = signals_today[symbol]['stop_short']
-                self.enter(symbol, quote[symbol], SHORT)
-                if self.equity.update(today, self.trades, self.heat):
-                    return True #시스템 가동 중단
-                
-            
 
 
-        #3. STOP 청산 및 stop 가격 업데이트
-        
-        #오늘 거래가능 종목중 진행중인 매매목록
-        fires = self.trades.get_on_fires() 
-        fires = [fire for fire in fires if fire.symbol in symbols]
-
-        for fire in fires:
-            if fire.position == LONG and fire.stopprice >= quote[fire.symbol]['low']:
-                self.trades.add_exit(fire, today, fire.stopprice, fire.lots, 'stop' )
-
-            elif fire.position == SHORT and fire.stopprice <= quote[fire.symbol]['high']:
-                self.trades.add_exit(fire, today, fire.stopprice, fire.lots, 'stop' )
-
-            else:
-                if fire.position == LONG:
-                    stopprice = self.signals.loc[today][fire.symbol]['stop_long']
-                elif fire.position == SHORT:
-                    stopprice = self.signals.loc[today][fire.symbol]['stop_short']
-
-                fire.stopprice == stopprice
-                fire.update_status(quote[fire.symbol]['close'], stopprice)
-
-        if self.equity.update(today, self.trades, self.heat):
-            return True #시스템 가동 중단
-
-    
-                
-    def enter(self, symbol, quote, position):
-        """
-        매매 진입
-        """
-        today = quote.name
-        sector = instruments[symbol].sector
-        order = {
-            'entrydate': today,
-            'symbol': symbol,
-            'sector': sector,
-            'position': position,
-            'entryprice': self.price(symbol, quote, position, 'enter'),
-        }
-
-        if position == LONG:
-            order['stopprice'] = self.signals.loc[today][symbol]['stop_long']
-        elif position == SHORT:
-            order['stopprice'] = self.signals.loc[today][symbol]['stop_short']
-
-        risk_trade, risk_ticks = self.price_to_value(
-            symbol, position, order['entryprice'], order['stopprice'], 1)
-        
-        #order['entryrisk'] = risk
-        order['entryrisk_ticks'] = risk_ticks
-        
-        #######################################################
-        #  리스크가 음수인 것은 시스템 전략의 문제임. 나중에 수정필요 #
-        #####################################################
-        if risk_ticks <= 0 :
-            self.trades.reject(symbol, today, sector, position, order['entryprice'])
-            return
-            #raise ValueError(f"리스크가 음수 또는 0일 수 없음: {order}")
-
-        #계약수 결정
-        lots = self.heat.calc_lots(symbol, sector, risk_ticks, self.equity)
-        if lots == 0:
-            self.trades.reject(symbol, today, sector, position, order['entryprice'])
-            return
-        
-        order['entrylots'] = lots
-        order['entryrisk'] = risk_trade * lots
-        order['commission'] = self.commission * lots
-        
-        self.trades.add_entry(**order)
-        #self.update_status()
-    
-    def lots_calculator(self):
-        """ 
-        진입 계약수 결정:
-        1) 가능한 heat 이 있는지 확인
-        2) 여분의 heat 범위에서 max_lots 이내로 결정 
-
-        %섹터 heat 계산은 나중에 업데이트
-        """
-        heat  =  self.heat()
-
-    def price_to_value(self, symbol, position, initial_price, final_price, lots):
-        """
-        상품 가격 차이로부터 가치를 계산
-        """
-        tickunit = instruments[symbol].tickunit
-        tickvalue = instruments[symbol].tickvalue
-        value_ticks = round(position*(initial_price-final_price)/tickunit)
-        value = value_ticks * tickvalue * lots
-
-        return value, value_ticks
-
-    
-    
-    def exit(self, fire, quote, type='exit'):
-        """
-        청산 
-
-        - 분할 매도 코드 추후 삽입
-        """
-        exitdate = quote.name
-        exitprice = self.price(fire.symbol, quote, fire.position, 'exit')
-        
-        #####################################
-        #추후 분할 청산 시스템 사용시 변경 필요#
-        #####################################
-        exitlots = fire.lots
-        #####################################
-
-        self.trades.add_exit(fire, exitdate, exitprice, exitlots, type)
-
-
-    def price(self,symbol, quote, position, type):
-        """ 
-        매매가격결정 
-         position: LONG or SHORT
-         type: enter or exit
-            1)'buy' : open + (high - open) * skid
-            2)'sell': open - (open - low) * skid 
-        """
-        tickunit = instruments[symbol].tickunit
-
-        if position==LONG and type == 'enter':
-            tick_diff = (quote['high'] - quote['open'])/tickunit
-            skid = round(tick_diff*self.skid)*tickunit
-            return quote['open'] + skid
-
-        elif position == LONG and type == 'exit':
-            tick_diff = (quote['open'] - quote['low'])/tickunit
-            skid = round(tick_diff*self.skid)*tickunit
-            return quote['open'] - skid
-
-        elif position == SHORT and type == 'enter':
-            tick_diff = (quote['open'] - quote['low'])/tickunit
-            skid = round(tick_diff*self.skid)*tickunit
-            return quote['open'] - skid
-
-        elif position == SHORT and type == 'exit':
-            tick_diff = (quote['high'] - quote['open'])/tickunit
-            skid = round(tick_diff*self.skid)*tickunit
-            return quote['open'] + skid
-        
-        
     def create_metrics(self, metrics, quotes):
         """
         configurator 파일에 등록된 사용 인디케이터를 pd Dataframe으로 생성
@@ -371,6 +147,17 @@ class System:
         for metric in self.abstract['metrics']:
             numeric_type[metric[0]] = [k for k,v in metric_types.items() if metric[1] in v][0]
         self.metrics.attrs['type'] = numeric_type
+
+        # OHLC 데이터가 없는 거래일에 metric 값은 Averaging 결과로써 존재할 수 있음. 
+        # 이를 NaN 값으로 변경 해줌
+        """
+        ohlc 데이타가 nan 인데도, averaging 과정에서 시그널이 있을 수 있음.
+        이를 nan으로 바꾸는 함수
+        """
+        for symbol in self.symbols:
+            flag = quotes[symbol][['open','high','low','close']].isna().any(axis=1)
+            self.metrics.loc[flag, symbol] = np.nan
+
 
 
     def create_signal(self, rules, name, quotes):
@@ -429,15 +216,274 @@ class System:
         self.signals.sort_index(axis=1, level=0, sort_remaining=False, inplace=True)
         #self.signals.index = self.signals.index.astype('M8[ns]')
 
-    def set_nans(self, df, quotes):
+    def compensate_signals(self, quotes):
         """
-        ohlc 데이타가 nan 인데도, averaging 과정에서 시그널이 있을 수 있음.
-        이를 nan으로 바꾸는 함수
-        df: self.signals 또는 self.metrics
+        1. 인덱스 형식 object -> datetime 으로 변경
         """
+        self.signals.index = self.signals.index.astype('M8[ns]')
+
+        """
+        1. ohlc 데이타가 nan 이면 signal도 모두 nan으로 변경
+        2. signal이 모두 nan인 날짜의 signal을 직전 거래일 값으로 변경
+
+        """
+        starts = {} #첫 거래 시작일
         for symbol in self.symbols:
             flag = quotes[symbol][['open','high','low','close']].isna().any(axis=1)
-            df.loc[flag==True, symbol] = np.nan
+            self.signals.loc[flag, symbol] = np.nan
+            starts[symbol] = quotes[symbol][~flag].index[0]
+        
+        for symbol in self.symbols:
+            start = starts[symbol]
+            while self.signals[symbol].loc[start:].isna().all(axis=1).any():
+                idx = self.signals[symbol].loc[start:].isna().all(axis=1)
+                mask = idx[idx==True].index
+                self.signals.loc[mask, symbol] = self.signals[symbol].shift(1).loc[mask].values
+
+
+
+    
+    def trade(self, quote):
+        """
+        * 매매 진행
+        yesterday: 전거래일(yesterday) 장 종료 후 매매여부 판단 후
+        quote: 오늘 날짜의 quote 가격으로 매매 진행 
+        
+        %% 매매시 고려 사항 및 진행 순서 %%
+        1. 진행중인 매매가 있는가?
+            Yes -> 청산신호 발생? Yes -> 청산
+                                 No -> pass
+            No -> pass
+
+        2. 신규진입 시그널이 있는가?
+            No -> pass
+            Yes -> heat 계산 -> 계약수 결정 -> 매매진입 -> heat 갱신
+        """
+        today = quote.name
+        datesindex = self.metrics.index
+        yesterday = datesindex[datesindex.get_loc(today) - 1]
+        
+        # 전일 장 종료 후 시그널로 매매 여부 판단
+        signals = self.signals.loc[yesterday]
+
+        """
+        1. 거래 가능 상품 선별
+          
+          상품마다 특정 날짜에 데이터가 존재하지 않을 수 있음
+          이 경우 해당 상품의 당일 시그널이 전일 시그널이 같도록 변경하고 거래 상품 목록에서 제외
+        """
+        #symbols = []
+        mask = quote.isna().groupby('symbol').all()
+        symbols = list(mask[~mask].index)
+        #print(symbols)
+
+        #for symbol in self.symbols:
+        #    ohlc = quote[symbol][['open','high','low','close']]
+
+        #    if ohlc.isna().any():
+        #        self.signals.loc[today, symbol] = self.signals.loc[yesterday, symbol].values
+        #    else:
+        #        symbols.append(symbol)
+
+        """
+        2. 진행 중인 매매 청산
+
+          진행중인 매매 상품 중 당일 거래 가능하면, 전일 청산 신호가 발생 했을 시 시초가 + skid 에 청산
+        """
+        
+        #진행중인 매매목록
+        fires = self.trades.get_on_fires() 
+        fires = [fire for fire in fires if fire.symbol in symbols]
+        
+        for fire in fires:
+            symbol = fire.symbol
+            if fire.position == LONG and signals[symbol]['exit_long']:
+                self.exit(fire, quote[symbol], type='exit')
+                #자산 상태 업데이트
+                #if self.equity.update(today, self.trades, self.heat):
+                #  return True #시스템 가동 중단
+
+            elif fire.position == SHORT and signals[symbol]['exit_short']:
+                self.exit(fire, quote[symbol], type='exit')
+                #자산 상태 업데이트
+                #if self.equity.update(today, self.trades, self.heat):
+                #    return True #시스템 가동 중단
+        
+        #자산 상태 업데이트
+        if self.equity.update(today, self.trades, self.heat):
+                    return True #시스템 가동 중단
+        
+        """
+        3. 매매 진입
+
+          전일 진입 신호 발생시, 시초가(+skid) 진입
+        """
+        for symbol in symbols:
+            if signals[symbol].get('enter_long'):
+                #stopprice = signals_today[symbol]['stop_long']
+                self.enter(symbol, quote[symbol], LONG)
+                if self.equity.update(today, self.trades, self.heat):
+                    return True #시스템 가동 중단
+                
+            elif signals[symbol].get('enter_short'):
+                #stopprice = signals_today[symbol]['stop_short']
+                self.enter(symbol, quote[symbol], SHORT)
+                if self.equity.update(today, self.trades, self.heat):
+                    return True #시스템 가동 중단
+                
+            
+
+
+        #3. STOP 청산 및 stop 가격 업데이트
+        
+        #오늘 거래가능 종목중 진행중인 매매목록
+        fires = self.trades.get_on_fires() 
+        fires = [fire for fire in fires if fire.symbol in symbols]
+
+        for fire in fires:
+            if fire.position == LONG and fire.stopprice >= quote[fire.symbol]['low']:
+                self.trades.add_exit(fire, today, fire.stopprice, fire.lots, 'stop' )
+
+            elif fire.position == SHORT and fire.stopprice <= quote[fire.symbol]['high']:
+                self.trades.add_exit(fire, today, fire.stopprice, fire.lots, 'stop' )
+
+            else:
+                if fire.position == LONG:
+                    stopprice = self.signals.loc[today][fire.symbol]['stop_long']
+                elif fire.position == SHORT:
+                    stopprice = self.signals.loc[today][fire.symbol]['stop_short']
+
+                fire.stopprice == stopprice
+                fire.update_status(quote[fire.symbol]['close'], stopprice)
+
+        if self.equity.update(today, self.trades, self.heat):
+            return True #시스템 가동 중단
+
+    
+                
+    def enter(self, symbol, quote, position):
+        """
+        매매 진입
+        """
+
+        # 해당 상품을 이미 최대 계약수로 매매하고 있다면 스킵
+        if sum([fire.lots for fire in self.trades.get_on_fires(symbol=symbol)]) >= self.heat.max_lots:
+            return
+
+
+        today = quote.name
+        sector = instruments[symbol].sector
+        order = {
+            'entrydate': today,
+            'symbol': symbol,
+            'sector': sector,
+            'position': position,
+            'entryprice': self.price(symbol, quote, position, 'enter'),
+        }
+
+        if position == LONG:
+            order['stopprice'] = self.signals.loc[today][symbol]['stop_long']
+        elif position == SHORT:
+            order['stopprice'] = self.signals.loc[today][symbol]['stop_short']
+
+        risk_trade, risk_ticks = self.price_to_value(
+            symbol, position, order['stopprice'], order['entryprice'], 1)
+        
+        #order['entryrisk'] = risk
+        order['entryrisk_ticks'] = risk_ticks
+        
+        if risk_ticks < 0 :
+            #self.trades.reject(symbol, today, sector, position, order['entryprice'])
+            #return
+            raise ValueError(f"리스크가 음수 또는 0일 수 없음: {order}")
+        
+        elif risk_ticks == 0:
+            return 
+
+        #계약수 결정
+        lots = self.heat.calc_lots(symbol, sector, risk_ticks, self.equity)
+        if lots == 0:
+            #self.trades.reject(symbol, today, sector, position, order['entryprice'])
+            return
+        
+        order['entrylots'] = lots
+        order['entryrisk'] = risk_trade * lots
+        order['commission'] = self.commission * lots
+        
+        self.trades.add_entry(**order)
+        #self.update_status()
+    
+
+    def price_to_value(self, symbol, position, initial_price, final_price, lots):
+        """
+        상품 가격 차이로부터 가치를 계산
+        """
+        tickunit = instruments[symbol].tickunit
+        tickvalue = instruments[symbol].tickvalue
+        value_ticks = round(position*(final_price-initial_price)/tickunit)
+        value = value_ticks * tickvalue * lots
+
+        return value, value_ticks
+
+    
+    
+    def exit(self, fire, quote, type='exit'):
+        """
+        청산 
+
+        - 분할 매도 코드 추후 삽입
+        """
+        exitdate = quote.name
+        exitprice = self.price(fire.symbol, quote, fire.position, 'exit')
+        
+        #####################################
+        #추후 분할 청산 시스템 사용시 변경 필요#
+        #####################################
+        exitlots = fire.lots
+        #####################################
+
+        self.trades.add_exit(fire, exitdate, exitprice, exitlots, type)
+
+
+    def price(self,symbol, quote, position, type):
+        """ 
+        매매가격결정 
+         position: LONG or SHORT
+         type: enter or exit
+            1)'buy' : open + (high - open) * skid
+            2)'sell': open - (open - low) * skid 
+        """
+        tickunit = instruments[symbol].tickunit
+
+        if position==LONG and type == 'enter':
+            tick_diff = (quote['high'] - quote['open'])/tickunit
+            skid = round(tick_diff*self.skid)*tickunit
+            return quote['open'] + skid
+
+        elif position == LONG and type == 'exit':
+            tick_diff = (quote['open'] - quote['low'])/tickunit
+            skid = round(tick_diff*self.skid)*tickunit
+            return quote['open'] - skid
+
+        elif position == SHORT and type == 'enter':
+            tick_diff = (quote['open'] - quote['low'])/tickunit
+            skid = round(tick_diff*self.skid)*tickunit
+            return quote['open'] - skid
+
+        elif position == SHORT and type == 'exit':
+            tick_diff = (quote['high'] - quote['open'])/tickunit
+            skid = round(tick_diff*self.skid)*tickunit
+            return quote['open'] + skid
+        
+    #def set_nans(self, df, quotes):
+    #    """
+    #    ohlc 데이타가 nan 인데도, averaging 과정에서 시그널이 있을 수 있음.
+    #    이를 nan으로 바꾸는 함수
+    #    df: self.signals 또는 self.metrics
+    #    """
+    #    for symbol in self.symbols:
+    #        flag = quotes[symbol][['open','high','low','close']].isna().any(axis=1)
+    #        df.loc[flag==True, symbol] = np.nan
 
     
     def equity_plot(self):
@@ -448,6 +494,7 @@ class System:
         fixed_capital = equity.fixed_capital.values
         principal = (capital - equity.flame).values #매매직전원금
         max_capital = equity.max_capital.values
+        #commission = equity.commission.values #누적 수수료
         p = self.principal #투자원금
 
         fig, ax = plt.subplots(1,1, figsize=(15, 12))
@@ -457,6 +504,7 @@ class System:
 
         ax.plot(x, principal, color='black',alpha=0.7, linewidth=1)
         ax.plot(x, capital, color='orange',alpha=0.7, linewidth=1, label='capital')
+        #ax.plot(x, commission, color='grey', alpha=0.7, linestyle='--', label='commission')
 
         ax.set_xlim([x.min(), x.max()])
 
@@ -515,6 +563,7 @@ class System:
             '평균손실': sum([t.profit for t in lose_trades])/len(lose_trades),
             #'손익표준편차': trade.profit.std(),
             '보유기간': sum(t.duration for t in trades)/cnt,
+            '매매회수': cnt
         }
         
         report = pd.DataFrame([total], index=['Result'])
@@ -537,6 +586,7 @@ class System:
                     #'# trades': "{:.1f}"
                 })
         
+
         return report
 
     def trade_result(self, level='name'):
@@ -572,9 +622,160 @@ class System:
                     '승률': "{:.1%}",
                     #'# trades': "{:.f}"
                 })
+        df.data.sort_values(by='총손익', ascending=False, inplace=True)
         return df
 
-    
+    def detail_result(self, symbol, start=None, end=None):
+        """
+        상품별 매매 결과 결과를 그래프로 출력함
+        """
+        from functools import reduce
+        from tools.display import MyFormatter
+        from IPython.display import display
+
+
+        #0. 환경 설정. 데이터 가공. 
+        start = self.from_date if start == None else start
+        end = self.to_date if end == None else end
+        symbol = symbol
+        name = instruments[symbol].name
+
+        quotes = instruments.quotes()[symbol].loc[start:end]
+        quotes.dropna(subset=['open','high','low','close'], inplace=True)
+
+        datesindex = quotes.index
+        quotes = quotes.reset_index()
+
+        metrics = self.metrics[symbol].loc[datesindex]
+
+        trades = self.trades.log(symbol=symbol)
+        trades = pd.DataFrame(trades, columns=['entrydate','exitdate','position', 'entryprice', 'entrylots','entryrisk','#exits', 'profit','profit_ticks','duration','result'])
+        trades = trades[(trades.entrydate>=start) & (trades.entrydate<=end)]
+
+        if len(trades) == 0:
+            print("No trades have made in given period")
+            return
+
+        #1. 차트 환경 설정
+        index_rows = sum([1 for i in metrics.attrs['type'].values() if i == 'index'])
+        xsize = 15
+        ysize = 15*(1 + 0.2*index_rows)
+        linewidth = 1
+
+        fig, (ax) = plt.subplots(3+index_rows, 1, figsize=(xsize, ysize),
+                    gridspec_kw = {'height_ratios':[4,1,1]+[1]*index_rows})
+        
+        #2. 성능차트
+        win_masks = []
+        lose_masks =[]
+
+        for idx, row in trades.iterrows():
+            mask = (quotes['date'] >= row['entrydate']) & (quotes['date'] <= row['exitdate'])
+            if row['result'] == 'WIN':
+                win_masks.append(mask)
+            elif row['result'] == 'LOSE':
+                lose_masks.append(mask)
+
+        win_mask = reduce(np.logical_or, win_masks) if win_masks else quotes['date'] == -1
+        lose_mask = reduce(np.logical_or, lose_masks) if lose_masks else quotes['date'] == -1
+
+        win_dates = quotes[win_mask].index
+        lose_dates = quotes[lose_mask].index
+        neutral_dates = quotes[~win_mask & ~lose_mask].index
+        dates = [win_dates, lose_dates, neutral_dates]
+        colors = ['r', 'b', 'k']
+
+        offset = 0.4
+
+        for date, color in zip(dates, colors):
+            o = quotes.loc[date, 'open'].values
+            h = quotes.loc[date, 'high'].values
+            l = quotes.loc[date, 'low'].values
+            c = quotes.loc[date, 'close'].values
+
+            ax[0].vlines(date, l, h, linewidth=linewidth, color=color)
+            ax[0].hlines(o, date-offset, date, linewidth=linewidth, color=color)
+            ax[0].hlines(c, date, date+offset, linewidth=linewidth, color=color)
+        
+        #3. 지표 그리기
+        metric_type = {
+            'price':[k for k, v in metrics.attrs['type'].items() if v=='price' ],
+            'index':[k for k, v in metrics.attrs['type'].items() if v=='index' ]
+        }
+
+        for metric in metric_type['price']:
+            ax[0].plot(quotes.index, metrics[metric], label=metric)
+
+
+        # formats
+        title = f"Trade Performance: {name} ({symbol})"
+        ax[0].set_title(title, fontsize=20)
+        ax[0].set_ylabel('Price')
+        ax[0].legend(loc=2)
+        myformatter = MyFormatter(datesindex)
+        ax[0].xaxis.set_major_formatter(myformatter)
+
+        #4.Index Chart
+        for axis, name in zip(ax[1:-1], metric_type['index']):
+            axis.set_title(name, loc='left')
+            #axis.set_ylabel(name, fontsize=15)
+            axis.plot(quotes.index, metrics[name])
+            axis.set_xticks([])
+
+
+        #5. Cummulative Profit Chart
+        cumprofit = trades.profit_ticks.cumsum()
+        idx = cumprofit.index
+        ax[-2].plot(cumprofit, color='blue')
+        ax[-2].axhline(y=0, linewidth=1, color='k')
+        ax[-2].set_title('Cummulative Profit(tick)', loc='left')
+
+
+        #4. Tick-Profit Chart
+        #tick profit chart
+        num_trades = len(trades)
+        ax[-1].bar(np.arange(1,num_trades+1), np.where(trades.position=='Long', trades.profit_ticks, 0), 0.3, color='red', alpha=0.6 )
+        ax[-1].bar(np.arange(1,num_trades+1), np.where(trades.position=='Short', trades.profit_ticks, 0), 0.3, color='blue', alpha=0.6 )
+        ax[-1].set_title('Profit (tick)', loc='left')
+        ax[-1].axhline(y=0, linewidth=1, color='k')
+        #labels
+
+        #common styles
+        for axis in ax:
+            axis.yaxis.tick_right()
+            axis.set_facecolor('lightgoldenrodyellow')
+            #ax[1].set_xticks(range(1,num_trades+1))
+            axis.grid(linestyle='--')
+
+        result = {
+                #'symbol': symbol,
+                '총손익': round(trades.profit.sum()),
+                '총손익(틱)': round(trades.profit_ticks.sum()),
+                '평균손익(틱)': round(trades.profit_ticks.mean()),
+                #'표준편차(틱)': round(trades.profit_ticks.std()),
+                '위험대비손익': (trades.profit/trades.entryrisk).mean(),
+                '승률': len(trades[trades['result'] == 'WIN'])/len(trades),
+                '보유기간': trades.duration.mean(),
+                '매매회수': len(trades)
+            }
+
+        df = pd.DataFrame(result, index=['결과'])
+        df = df.style.format({
+                    '총손익': "{:,}",
+                    '총손익(틱)': "{:,}",
+                    '평균손익(틱)': "{:,}",
+                    #'표준편차(틱)': "{:,}",
+                    '위험대비손익': "{:.2%}",
+                    '승률': "{:.1%}",
+                    '보유기간': "{:.0f}"
+                })
+        #return df
+        
+        display(df)
+        return trades
+
+
+
 
        
    

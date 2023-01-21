@@ -20,7 +20,7 @@ class DefaultHeat:
         self.max_system_heat = max_system_heat
         self.max_sector_heat = max_sector_heat
         self.max_trade_heat = max_trade_heat
-        self.max_lots = max_lots
+        self.max_lots = max_lots #상품당 최대 계약수
         
     def system_heat(self, status):
         return  status.risk/status.capital
