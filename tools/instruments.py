@@ -155,6 +155,11 @@ class Instrument:
         
         return rolls
 
+    @property
+    def decimal_places(self):
+        """ 소숫점 자리수 """
+        exponent = D(str(self.tickunit)).as_tuple().exponent
+        return exponent * -1 if exponent < 0 else 0
 
    
     @property

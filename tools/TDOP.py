@@ -4,20 +4,23 @@ import numpy as np
 
 #from .tools import rolling_window
 
-def get_factors(table, pinfo):
+def get_factors(density, p):
     """
     density table로부터 주요 factor들을 반환
-    x: 가격 array에 매핑되는 x축 index array
-    columns: 가격에 매핑되는 x index의 시간별 리스트
+    x: 전체 데이터셋의 최저가부터 최대가까지를 나타내는 x축 index array
+    columns: prices array에 저장된 각 가격들을 x축 index로 변환
+    ex) 
+      x= [0.1,0.2,0.3,0.4,0.5]
+      prices = [0.2,0.2,0.3,0.4,0.1,0.5,0.5]
+      columns = [1,1,2,3,0,4,4]
     dates: 날짜 array
     """
-    density = table.read()
-    tickunit = pinfo['tick_unit']
-    digit = pinfo['decimal_places']
+    tickunit = p.tickunit
+    digit = p.decimal_places
     
-    dates = density['date'].astype('M8[s]')
-    prices = np.round(density['price'], digit)
-    values = density['value']
+    dates = density[:,0].astype('M8[s]')
+    prices = np.round(density[:,1], digit)
+    values = density[:,2]
     values[np.isinf(values)] = 0 #inf --> 0
     values[values> values.mean() * values.std()*5] = 0 ## larger than std * 15 --> 0
     values[np.isnan(values)] = 0 # nan --> 0
@@ -25,18 +28,18 @@ def get_factors(table, pinfo):
     min_price = prices.min()
     max_price = prices.max()
     
-    x = np.arange(min_price, max_price+tickunit/2, tickunit).round(digit)
-    columns = np.searchsorted(x, prices)
+    x_axis = np.arange(min_price, max_price+tickunit/2, tickunit).round(digit)
+    priceindex = np.searchsorted(x_axis, prices)
     
-    return x, columns, values, dates
+    return x_axis, priceindex, values, dates
 
 
 
-def create_tdop(columns, values, dates, now=None, period=None, decayfactor=1):
+def create_tdop(priceindex, values, dates, now=None, period=None, decayfactor=1):
     """
     tdop array를 반환
     args:
-     - columns: 가격의 열 번호를 가진 numpy array
+     - priceindex: 가격의 x축 인덱스번호를 갖는 numpy array
      - values: 가격대별 거래량
      - dates: 날짜 array
      - now: 계산 시점
@@ -44,7 +47,7 @@ def create_tdop(columns, values, dates, now=None, period=None, decayfactor=1):
      - decayfactor: 시간 감소 주기 (단위: 일)
      """
     if not now:
-        now = np.datetime64(datetime.now() + timedelta(hours=1))
+        now = np.datetime64(datetime.now() + timedelta(hours=1)) #최소시차 1시간
     
     if not period:
         start = dates[0]
@@ -56,14 +59,14 @@ def create_tdop(columns, values, dates, now=None, period=None, decayfactor=1):
     values[exclude_idx] = 0
     
     #scale factor: exp(-(date - date)/decayfactor )
-    delta = (now - dates)/np.timedelta64(decayfactor,'D') # 시차(일수)
-    delta[delta<0] = np.nan 
+    exponent = - (now - dates)/np.timedelta64(decayfactor,'D')
+    exponent[exponent>0] = np.nan # 에러 핸들링
     #delta = delta +1 # 최소시차 = 1
-    weight = values * np.exp(-delta)
+    weight = values * np.exp(exponent)
     #weight = values * np.exp(-np.sqrt(delta))
     weight[np.isnan(weight)] = 0
     
-    tdop = np.bincount(columns, weights=weight)
+    tdop = np.bincount(priceindex, weights=weight)
     return tdop
 
 def get_SR(tdop, threshold):
