@@ -33,8 +33,6 @@ def get_factors(density, p):
     
     return x_axis, priceindex, values, dates
 
-
-
 def create_tdop(priceindex, values, dates, now=None, period=None, decayfactor=1):
     """
     tdop array를 반환
@@ -54,19 +52,12 @@ def create_tdop(priceindex, values, dates, now=None, period=None, decayfactor=1)
     else:
         start = now - np.timedelta64(period * 365, 'D')
     
-    exclude_idx=np.where((dates<start) | (now<dates))[0]
-    values = values.copy()
-    values[exclude_idx] = 0
-    
     #scale factor: exp(-(date - date)/decayfactor )
     exponent = - (now - dates)/np.timedelta64(decayfactor,'D')
-    exponent[exponent>0] = np.nan # 에러 핸들링
-    #delta = delta +1 # 최소시차 = 1
     weight = values * np.exp(exponent)
-    #weight = values * np.exp(-np.sqrt(delta))
-    weight[np.isnan(weight)] = 0
+    filtered = np.ma.array(weight, mask=(dates>now))
+    tdop = np.bincount(priceindex, weights=filtered.filled(0))
     
-    tdop = np.bincount(priceindex, weights=weight)
     return tdop
 
 def get_SR(tdop, threshold):
@@ -85,30 +76,33 @@ def get_SR(tdop, threshold):
         return None, None
 
 
-def get_resist(tdops, threshold):
+def get_resist(data, threshhold):
     """
     tdops로부터 저항선을 계산하여 반환
-    threshold: normalized cum tdop의 SR 임계치 % ex)0.99 --> 99%
+    threshold: normalized cum tdop에서 중앙 threshhold 만큼만 남김
     """
-    th = (1-threshold) / 2
-    values = tdops['tdop'].value
-    dates = tdops['dates'].value.astype('M8[s]')
-    price = tdops['prices'].value
+    th = (1-threshhold)/2
+    #dates = data['dates'][:].astype('M8[s]')
+    tdops = data['tdop']
+    prices = data['prices'][:]
     
-    lower = []
-    upper = []
-    for date, value in zip(dates, values):
+    data = []
+    for tdop in tdops[:]:
         
-        tdop = value.cumsum()/value.sum() if value.sum() > 0 else value
-        effective = np.where( (th < tdop) & (tdop < 1-th))[0]
+        norm_tdop = tdop.cumsum()/tdop.sum() if tdop.sum() > 0 else tdop
+        effective = np.where( (th < norm_tdop) & (norm_tdop < 1-th))[0]
         if effective.size> 0:
-            lower.append(price[effective.min()])
-            upper.append(price[effective.max()])
+            lower = prices[effective.min()]
+            upper = prices[effective.max()]
         
         else: #임계값이 없으면 마지막 값
-            lower.append(lower[-1] if lower else np.nan)
-            upper.append(upper[-1] if upper else np.nan)
-    return (lower,upper)
+            lower = data[-1][1] if data else np.nan
+            upper = data[-1][2] if data else np.nan
+
+        median = prices[np.where(norm_tdop <= 0.5)[0].max()]
+        
+        data.append((median, lower, upper))
+    return data
 
 def split(arr, idx):
     """
