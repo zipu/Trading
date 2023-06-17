@@ -1,12 +1,12 @@
 #시스템 명
-name: testSystem
+name: 
 description: 시스템 설명
 
 #거래시장 정보
-#quotes_style: bo
+quotes_style: bo
 sectors: default
-instruments: ['AD'] #~ #['AD', 'CL','C','LC', 'W','MD', 'NQ']
-from_date: '2019-08-01'
+instruments: ~ #['AD', 'CL','C','LC', 'W','MD', 'NQ']
+from_date: '2016-08-01'
 to_date: ~ #'2018-05-01'
 
 
@@ -37,16 +37,16 @@ metrics:
  #- [ATR, window=100]
 
 entry_rule: 
- long: ~ #ema5>ema30 
- short: ema5>ema30 #~ #ema200>ema20
+ long: ema5>ema30 #ema5>ema30 
+ short: ~ #~ #ema200>ema20
 
 exit_rule: 
- long: ~ #ema5<ema30 
- short: ema5<ema30 #ema5>ema30
+ long: ema5<ema30 #ema5<ema30 
+ short: ~ #ema5>ema30
 
 stop_rule: 
- long: ~ #min30
- short: max300
+ long: min30
+ short: #max300
  
 
 

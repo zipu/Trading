@@ -62,10 +62,6 @@ class Trader:
                         print(f"###### 시스템 가동 종료: {system.name} #######")
                         systems.pop(systems.index(system))
 
-                    
-                 
-                    
-
         return
 
 
@@ -77,11 +73,11 @@ class Trader:
         # 사용자 제공 정보 검사
         for system in systems:
             # 연결 정보 다르면 에러
-            if system['quotes_style'] != self.quotes_style:
-                msg = "\nQuotes_style does NOT match.\n"\
-                      f"trader's quotes_style: {self.quotes_style}\n"\
-                      f"system <<{system['name']}>>'s quotes_style: {system['quotes_style']}"
-                raise ValueError(msg)
+            #if system['quotes_style'] != self.quotes_style:
+            #    msg = "\nQuotes_style does NOT match.\n"\
+            #          f"trader's quotes_style: {self.quotes_style}\n"\
+            #          f"system <<{system['name']}>>'s quotes_style: {system['quotes_style']}"
+            #    raise ValueError(msg)
 
             #상품 목록 없으면 srf and ebest 목록으로 테스트 진행
             if not system['instruments']:

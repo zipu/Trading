@@ -1,9 +1,0 @@
-1) Market
-    - quotes:pd datafraem
-    - today
-    - 
-
-2) Trader
-
-3) Index
-
