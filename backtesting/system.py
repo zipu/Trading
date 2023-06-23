@@ -3,7 +3,7 @@
 """
 #from multiprocessing import log_to_stderr
 #from os import stat
-
+import os
 from datetime import datetime
 from collections import defaultdict
 import re
@@ -22,7 +22,6 @@ SHORT = -1
 
 
 class System:
-
     def __init__(self, abstract, quotes, id):
         """
         abstract: 시스템 설정 내용
@@ -39,11 +38,12 @@ class System:
 
         self.name = abstract['name']
         self.description = abstract['description']
-        self.symbols = abstract['instruments'] #매매상품 코드 목록
-        if not self.symbols: #코드 목록이 없으면 srf 전체 목록으로 매매 진행
-            self.symbols = instruments.get_symbols('srf')
+        self.symbols = abstract['instruments'] #상품 코드 목록
         
-       #self.instruments = [instruments[symbol] for symbol in self.symbols]
+        #if not self.symbols: #코드 목록이 없으면 srf 전체 목록으로 매매 진행
+        #    self.symbols = instruments.get_symbols('srf')
+        
+        self.instruments = [instruments[symbol] for symbol in self.symbols]
         
         #섹터정보
         self.sectors = defaultdict(list)
@@ -270,7 +270,7 @@ class System:
         1. 거래 가능 상품 선별
           
           상품마다 특정 날짜에 데이터가 존재하지 않을 수 있음
-          이 경우 해당 상품의 당일 시그널이 전일 시그널이 같도록 변경하고 거래 상품 목록에서 제외
+          이 경우 해당 상품의 당일 시그널을 전일 시그널과 같도록 변경하고 거래 상품 목록에서 제외
         """
         #symbols = []
         mask = quote.isna().groupby('symbol').all()
@@ -527,11 +527,13 @@ class System:
         ax.yaxis.tick_right()
         fig.autofmt_xdate()
                 
-        plt.show()
+        #plt.show()
+        return fig
 
     def summary(self, level=0):
         if level == 0:
             self.equity_plot()
+            #plt.show()
             return self.total_result()
         
         elif level == 1:
@@ -771,8 +773,182 @@ class System:
                 })
         #return df
         
-        display(df)
-        return trades
+        #display(df)
+        return (fig, result, trades)
+        #return trades
+
+    def create_report(self):
+        """ 결과 보고서 작성 """
+        #폴더 생성
+        foldername = self.name + '_' + datetime.today().strftime('%Y%m%d%H%M')
+        os.makedirs(foldername)
+
+        #1. 종합 결과
+        #equity chart 이미지 파일 생성 및 저장 
+        fig = self.equity_plot()
+        fig.tight_layout()
+        fig.savefig(os.path.join(foldername,'equity_chart.svg')) #equity_chart
+
+
+        result = self.summary().data.to_dict()
+        for k,v in result.items():
+            result[k] = v['Result']
+
+        #2. 섹터 결과
+        sector_table_rows=""
+        for name, row in self.summary(level=1).data.iterrows():
+            sector_table_rows += f"""\
+            <tr align='center'>\
+            <td>{name}</td>\
+            <td>{row['총손익']}</td>\
+            <td>{row['평균손익']:.0f}</td>\
+            <td>{row['표준편차']:.0f}</td>\
+            <td>{row['위험대비손익']:.2f}</td>\
+            <td>{row['승률']*100:.2f} %</td>\
+            <td>{row['보유기간']:.0f}</td>\
+            <td>{ row['매매회수']:.0f}</td>\
+            </tr>\
+            """
+        
+        #3. 종목별 결과
+        product_table_rows=""
+        for name, row in self.summary(level=2).data.iterrows():
+            product_table_rows += f"""\
+            <tr align='center'>\
+            <td>{name}</td>\
+            <td>{row['총손익']}</td>\
+            <td>{row['평균손익']:.0f}</td>\
+            <td>{row['표준편차']:.0f}</td>\
+            <td>{row['위험대비손익']:.2f}</td>\
+            <td>{row['승률']*100:.2f} %</td>\
+            <td>{row['보유기간']:.0f}</td>\
+            <td>{ row['매매회수']:.0f}</td>\
+            </tr>\
+            """
+        
+        #4. 종목 결과 상세
+        product_detail=""
+        for symbol in self.symbols:
+            fig, product_result, trades = self.detail_result(symbol)
+            fig.tight_layout()
+            fig.savefig(os.path.join(foldername,f'trade_chart_({symbol}).svg')) #trade_chart
+            product_detail += f"""\
+            <div align="center">\
+                    <img src="trade_chart_({symbol}).svg" width="1000px;" style="margin-left:50px; padding:0">
+                    <div align="center">
+                        <table border="1" width="600px" style="border-collapse:collapse" >
+                            <tr align="center">
+                                <th width="14.3%">총손익</th>
+                                <th width="14.3%">총손익(틱)</th>
+                                <th width="14.3%">평균손익(틱)</th>
+                                <th width="14.3%">위험대비손익</th>
+                                <th width="14.3%">승률</th>
+                                <th width="14.3%">보유기간</th>
+                                <th width="14.3%">매매횟수</th>
+                            </tr>
+                            <tr>
+                                <td width="14.3%">{product_result['총손익']:.0f}</td>
+                                <td width="14.3%">{product_result['총손익(틱)']:.0f}</td>
+                                <td width="14.3%">{product_result['평균손익(틱)']:.1f}</td>
+                                <td width="14.3%">{product_result['위험대비손익']:.0f}</td>
+                                <td width="14.3%">{product_result['승률']:.2f} %</td>
+                                <td width="14.3%">{product_result['보유기간']:.0f}</td>
+                                <td width="14.3%">{product_result['매매회수']:.0f}</td>
+                            </tr>
+                        </table>
+                    </div>
+            </div><br><br><br>
+            """
+            trades.to_csv(os.path.join(foldername,f'trade_history_({symbol}).csv'))
+
+        #템플릿파일 로드
+        with open('report_template.html', encoding='utf-8') as f:
+            template = f.read()
+
+
+        # 최종 html 파일 작성
+        abstract = self.abstract
+        report = template.format(
+            today = datetime.today().strftime('%Y년 %m월 %d일'),
+            system_name = abstract['name'],
+            system_description = abstract['description'],
+            system_sector=abstract['sectors'],
+            system_instruments=', '.join(abstract['instruments']),
+            system_from_date=abstract['from_date'],
+            system_to_date=abstract['to_date'],
+            system_principal=abstract['principal'],
+            system_heat_system=abstract['heat_system'],
+            system_max_system_heat=abstract['max_system_heat'],
+            system_max_sector_heat=abstract['max_sector_heat'],
+            system_max_trade_heat=abstract['max_trade_heat'],
+            system_max_lots=abstract['max_lots'],
+            system_commission=abstract['commission'],
+            system_skid= abstract['skid'],
+            system_metrics='<br>'.join(['  ,  '.join(i) for i in abstract['metrics']]),
+            system_entry_rule_long=abstract['entry_rule']['long'],
+            system_entry_rule_short=abstract['entry_rule']['short'],
+            system_exit_rule_long=abstract['exit_rule']['long'],
+            system_exit_rule_short=abstract['exit_rule']['short'],
+            system_stop_rule_long=abstract['stop_rule']['long'],
+            system_stop_rule_short=abstract['stop_rule']['short'],
+            equity_chart='equity_chart.svg',
+            principal=result['투자금'],
+            capital=result['최종자산'],
+            profit=result['총손익'],
+            bliss=result['Bliss'],
+            cagr=result['CAGR'],
+            mdd=result['MDD'],
+            ptr=result['손익비'],
+            winrate=result['승률']*100,
+            rtp=result['위험대비손익'],
+            avg_profit=result['평균손익'],
+            avg_win=result['평균수익'],
+            avg_loss=result['평균손실'],
+            sector_table_rows = sector_table_rows,
+            product_table_rows=product_table_rows,
+            product_detail = product_detail
+        )
+
+        with open(os.path.join(foldername, '00_report.html'), 'w') as f:
+            f.write(report)
+            
+        # 상세 거래내역 생성 및 저장
+        history = []
+        for trade in self.trades.book:
+            history.append([
+                trade.id,
+                trade.name,
+                trade.entrydate.strftime('%Y-%m-%d'),
+                trade.symbol,
+                trade.sector,
+                trade.position,
+                trade.entryprice,
+                trade.entrylots,
+                trade.entryrisk,
+                trade.entryrisk_ticks,
+                trade.currentprice,
+                trade.stopprice,
+                trade.risk,
+                trade.lots,
+                trade.flame,
+                trade.exits[0]['exitdate'].strftime('%Y-%m-%d'),
+                trade.exits[0]['exitprice'],
+                trade.exits[0]['exitlots'],
+                trade.exits[0]['profit'],
+                trade.exits[0]['profit_ticks'],
+                trade.exits[0]['duration'],
+                trade.exits[0]['result'],
+                trade.commission,
+                trade.exittype,
+                trade.on_fire,
+                
+            ])
+
+        columns = ['id','name','entrydate','symbol','sector','position','entryprice','entrylots',\
+                    'entryrisk','entryrisk_ticks','currentprice','stopprice','risk','lots','flame','exitdate',\
+                    'exitprice','exitlots','profit','profit_ticks','duration','result','commission','exittype','on_fire']
+        df = pd.DataFrame(columns=columns, data=history)
+        df.to_csv(os.path.join(foldername,f'trade_history.csv'))
 
 
 

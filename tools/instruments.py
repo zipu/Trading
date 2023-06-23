@@ -63,49 +63,53 @@ class Instrument:
 
     def __repr__(self):
         return f"[{self.symbol}] {self.name}"
+    
+    
 
-    def quotes(self, db='srf', method='bo', fields='ohlcvi', contract=None):
+    def quotes(self, db=SRF_CONTINUOUS_BO_DB_PATH, fields='ohlcvi', contract=None):
         """
         Database 에 저장된 일봉데이터 반환
         kwargs
-         db: database 종류 (default: kibot)
-         method: 연결방식 (bo 또는 bv)
+         db: database 파일
          fields: 반환할 필드값 'ohlcv', 'ohlc', 'ohlcvi'
         """
         #filename = "futures-continuous-BV.hdf"
         #filepath = os.path.join(DATADIR, db, filename)
-        if db == 'kibot':
-            file = h5py.File(KIBOT_FUTURES_CONTINUOUS_BV_DB_PATH, 'r')
-            dset = file
-            code = self.symbol
+        #if db == 'kibot':
+        #    file = h5py.File(KIBOT_FUTURES_CONTINUOUS_BV_DB_PATH, 'r')
+        #    dset = file
+        #    code = self.symbol
         
-        elif db == 'srf' and not contract:
-            if method == 'bo':
-                file = h5py.File(SRF_CONTINUOUS_BO_DB_PATH, 'r')
+        #elif db == 'srf' and not contract:
+        #    if method == 'bo':
+        #        file = h5py.File(SRF_CONTINUOUS_BO_DB_PATH, 'r')
             
             #elif method == 'bv':
             #    file = h5py.File(SRF_CONTINUOUS_BV_DB_PATH, 'r')
             
-            elif method == 'so':
-                file = h5py.File(SRF_CONTINUOUS_SO_DB_PATH, 'r')
+        #    elif method == 'so':
+        #        file = h5py.File(SRF_CONTINUOUS_SO_DB_PATH, 'r')
 
-            else:
-                raise ValueError(f"method: {method} does not exit")
+        #    else:
+        #        raise ValueError(f"method: {method} does not exit")
             
-            dset = file
-            code = self.symbol 
+        #    dset = file
+        #    code = self.symbol 
 
-        elif db == 'srf' and contract:
-            file = h5py.File(SRF_CONTRACTS_DB_PATH, 'r')
+        if contract:
+            file = h5py.File(db, 'r')
             dset = file[self.symbol]
             code = contract
-        
-        if not dset.get(code):
-            """ 해당 상품 데이터가 없음 """
+
+        else:
+            file = h5py.File(db, 'r')
+            dset = file
+            code = self.symbol
+
+
+        if not code in dset.keys():
             return None
 
-        
-        
         if fields == 'ohlcvi':
             data = dset[code][:]
         elif fields == 'ohlcv':
@@ -305,8 +309,13 @@ class Instruments(dict):
         #print(f'Total {len(lists)} items selected')
         #return tuple(lists)
         return lists 
+    
+    def db_symbols(self, db=SRF_CONTINUOUS_BO_DB_PATH):
+        """ 사용할 DB 안의 상품 리스트 반환"""
+        file = h5py.File(db, 'r')
+        return list(file.keys())
 
-    def quotes(self, db='srf', symbols=None, start=None, end=None, fields='ohlcvi', method='bo'):
+    def quotes(self, db=SRF_CONTINUOUS_BO_DB_PATH, symbols=None, start=None, end=None, fields='ohlcvi'):
         """
         여러 상품의 일봉정보를 돌려주는 함수
         *args
@@ -320,22 +329,22 @@ class Instruments(dict):
         *return
           pandas dataframe
         """
-        if db == 'kibot':
-            filename = KIBOT_FUTURES_CONTINUOUS_BV_DB_PATH
+        #if db == 'kibot':
+        #    filename = KIBOT_FUTURES_CONTINUOUS_BV_DB_PATH
         
-        elif db == 'srf' and method=='bo':
-            filename = SRF_CONTINUOUS_BO_DB_PATH
+        #elif db == 'srf' and method=='bo':
+        #    filename = SRF_CONTINUOUS_BO_DB_PATH
         
         #elif db == 'srf' and method=='bv':
         #    filename = SRF_CONTINUOUS_BV_DB_PATH
         
-        elif db == 'srf' and method=='so':
-            filename = SRF_CONTINUOUS_SO_DB_PATH
+        #elif db == 'srf' and method=='so':
+        #    filename = SRF_CONTINUOUS_SO_DB_PATH
 
-        else:
-            raise ValueError(f"'{method}' is not known method")
+        #else:
+        #    raise ValueError(f"'{method}' is not known method")
 
-        file = h5py.File(filename, 'r')
+        file = h5py.File(db, 'r')
 
 
         if not symbols:

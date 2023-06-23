@@ -8,29 +8,27 @@ from .system import System
 from tools.instruments import instruments
 from tools.quotes import Quotes
 
+from tools.constants import SRF_CONTINUOUS_BO_DB_PATH
+
 long = LONG = L = 1
 short = SHORT = S = -1
 
 class Trader:
     """
-     여러 시스템을 테스트하고 분석하는 트레이더 오브젝트
+     여러 시스템을 운용하고 그 결과를 종합하여 분석하는 총괄 오브젝트 
     """
     
-    #commission = 3.5 #편도 수수료
-    #sectors = ['Currency','Grain','Meat','Tropical','Petroleum','Equity','Rate']
-    
-    def __init__(self, quotes_style, systems=[]):
+    def __init__(self, systems=[], db=SRF_CONTINUOUS_BO_DB_PATH):
         """
         symbols: 거래에 사용될 상품 목록
         systems: 시스템 목록
         """
-        #srf 데이터가 있는 상품목록 호출
-        self.instruments = [ins for ins in instruments.values() if ins.srf ]
+        #데이터베이스에 있는 종목 리스트 호출
+        self.instruments = instruments.db_symbols(db=db)
         self.quotes = instruments.quotes(
-                            symbols=[ins.symbol for ins in self.instruments],
-                            method=quotes_style
+                            symbols=self.instruments,
+                            db=db
                         )
-        self.quotes_style = quotes_style
         #시스템 등록
         self.systems = []
         self.add_systems(systems)
@@ -72,23 +70,34 @@ class Trader:
             
         # 사용자 제공 정보 검사
         for system in systems:
-            # 연결 정보 다르면 에러
-            #if system['quotes_style'] != self.quotes_style:
-            #    msg = "\nQuotes_style does NOT match.\n"\
-            #          f"trader's quotes_style: {self.quotes_style}\n"\
-            #          f"system <<{system['name']}>>'s quotes_style: {system['quotes_style']}"
-            #    raise ValueError(msg)
-
-            #상품 목록 없으면 srf and ebest 목록으로 테스트 진행
+            #상품 목록 없으면 전체 상품목록으로 테스트 진행
             if not system['instruments']:
-                system['instruments'] = instruments.get_symbols('srf', 'ebest')
+                system['instruments'] = self.instruments
         
         
         for id, system in enumerate(systems):
-            quotes = self.quotes[system['instruments']]
+            quotes = Quotes(self.quotes[system['instruments']], type='multiple')
             #print(quotes)
             self.systems.append(
-                    System(system, Quotes(quotes, type='multiple'), id)
+                    System(system, quotes, id)
                 )
 
     
+    def create_report(self):
+        """ 결과 보고서 작성 """
+        #폴더 생성
+        foldername = self.name + '_' + datetime.today().strftime('%Y%m%d%H%M')
+        os.makedirs(foldername)
+
+        #1. 종합 결과
+        #equity chart 이미지 파일 생성 및 저장 
+        fig = self.equity_plot()
+        fig.tight_layout()
+        fig.savefig(os.path.join(foldername,'equity_chart.svg')) #equity_chart
+
+
+        result = self.summary().data.to_dict()
+        for k,v in result.items():
+            result[k] = v['Result']
+
+        
