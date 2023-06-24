@@ -24,7 +24,12 @@ class Trader:
         systems: 시스템 목록
         """
         #데이터베이스에 있는 종목 리스트 호출
-        self.instruments = instruments.db_symbols(db=db)
+        self.instruments = []
+        for symbol in instruments.db_symbols(db=db):
+            if instruments[symbol].tradable:
+                self.instruments.append(symbol)
+
+        
         self.quotes = instruments.quotes(
                             symbols=self.instruments,
                             db=db

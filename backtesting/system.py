@@ -487,6 +487,7 @@ class System:
 
     
     def equity_plot(self):
+        
         equitylog = pd.DataFrame(self.equity.log()).set_index('date')
         equity = equitylog.groupby(by='date').last()
         x = equity.index.values
@@ -498,12 +499,12 @@ class System:
         p = self.principal #투자원금
 
         fig, ax = plt.subplots(1,1, figsize=(15, 12))
-        ax.fill_between(x, p, fixed_capital, where=fixed_capital>=p, facecolor='green', alpha=0.4, interpolate=True, label='fixed_capital')
+        ax.fill_between(x, p, fixed_capital, where=fixed_capital>=p, facecolor='green', alpha=0.4, interpolate=True, label='fixed value=total value - risk')
         ax.fill_between(x, p, fixed_capital, where=fixed_capital<p, facecolor='red', alpha=0.6, interpolate=True)
         ax.fill_between(x, capital, max_capital, color='grey', alpha=0.2)
 
-        ax.plot(x, principal, color='black',alpha=0.7, linewidth=1)
-        ax.plot(x, capital, color='orange',alpha=0.7, linewidth=1, label='capital')
+        ax.plot(x, principal, color='black',alpha=0.7, linewidth=1, label='cash')
+        ax.plot(x, capital, color='orange',alpha=0.7, linewidth=1, label='total value = cash + flame - commission')
         #ax.plot(x, commission, color='grey', alpha=0.7, linestyle='--', label='commission')
 
         ax.set_xlim([x.min(), x.max()])
@@ -512,7 +513,7 @@ class System:
         rate = 0.1 #annual interest rate
         refx = (x-x[0])/np.timedelta64(365,'D')
         refy = p*np.exp(rate*refx)
-        ax.plot(x, refy, color='magenta', linestyle='--', label='reference')
+        ax.plot(x, refy, color='magenta', linestyle='--', label='reference (10%)')
 
         #labels
         ax.legend(loc='upper left', fontsize='large')
@@ -603,7 +604,7 @@ class System:
             trade = {
                 #'symbol': symbol,
                 '구분': lev,#self.pinfo[symbol]['name'],
-                '총손익': table.profit.sum(),
+                '총손익': table.profit.sum()+table.flame.sum(),
                 '평균손익': table.profit.mean(),
                 '표준편차': table.profit.std(),
                 '위험대비손익': (table.profit/table.entryrisk).mean(),
@@ -651,12 +652,19 @@ class System:
         metrics = self.metrics[symbol].loc[datesindex]
 
         trades = self.trades.log(symbol=symbol)
-        trades = pd.DataFrame(trades, columns=['entrydate','exitdate','position', 'entryprice', 'entrylots','entryrisk','#exits', 'profit','profit_ticks','duration','result'])
-        trades = trades[(trades.entrydate>=start) & (trades.entrydate<=end)]
+        trades = pd.DataFrame(trades)
+        #, columns=['entrydate','exitdate','position', 'entryprice', 'entrylots','entryrisk','#exits', 'profit','profit_ticks','duration','result'])
+        
 
         if len(trades) == 0:
-            print("No trades have made in given period")
-            return
+            print(f"No trades have made in given period: {symbol}")
+            return (None, None)
+        
+        else:
+            trades = trades[(trades.entrydate>=start) & (trades.entrydate<=end)]
+            if len(trades) == 0:
+                print(f"No trades have made in given period: {symbol}")
+                return (None, None)
 
         #1. 차트 환경 설정
         index_rows = sum([1 for i in metrics.attrs['type'].values() if i == 'index'])
@@ -774,20 +782,22 @@ class System:
         #return df
         
         #display(df)
-        return (fig, result, trades)
+        return (fig, result)
         #return trades
 
     def create_report(self):
         """ 결과 보고서 작성 """
         #폴더 생성
         foldername = self.name + '_' + datetime.today().strftime('%Y%m%d%H%M')
-        os.makedirs(foldername)
+        savedir = os.path.join('report',foldername) 
+        os.mkdir(savedir)
 
         #1. 종합 결과
         #equity chart 이미지 파일 생성 및 저장 
         fig = self.equity_plot()
         fig.tight_layout()
-        fig.savefig(os.path.join(foldername,'equity_chart.svg')) #equity_chart
+        fig.savefig(os.path.join(savedir,'equity_chart.svg')) #equity_chart
+        plt.close()
 
 
         result = self.summary().data.to_dict()
@@ -800,9 +810,9 @@ class System:
             sector_table_rows += f"""\
             <tr align='center'>\
             <td>{name}</td>\
-            <td>{row['총손익']}</td>\
-            <td>{row['평균손익']:.0f}</td>\
-            <td>{row['표준편차']:.0f}</td>\
+            <td>{row['총손익']:,.0f}</td>\
+            <td>{row['평균손익']:,.0f}</td>\
+            <td>{row['표준편차']:,.0f}</td>\
             <td>{row['위험대비손익']:.2f}</td>\
             <td>{row['승률']*100:.2f} %</td>\
             <td>{row['보유기간']:.0f}</td>\
@@ -816,9 +826,9 @@ class System:
             product_table_rows += f"""\
             <tr align='center'>\
             <td>{name}</td>\
-            <td>{row['총손익']}</td>\
-            <td>{row['평균손익']:.0f}</td>\
-            <td>{row['표준편차']:.0f}</td>\
+            <td>{row['총손익']:,.0f}</td>\
+            <td>{row['평균손익']:,.0f}</td>\
+            <td>{row['표준편차']:,.0f}</td>\
             <td>{row['위험대비손익']:.2f}</td>\
             <td>{row['승률']*100:.2f} %</td>\
             <td>{row['보유기간']:.0f}</td>\
@@ -829,14 +839,17 @@ class System:
         #4. 종목 결과 상세
         product_detail=""
         for symbol in self.symbols:
-            fig, product_result, trades = self.detail_result(symbol)
+            fig, product_result = self.detail_result(symbol)
+            if not fig:
+                continue
             fig.tight_layout()
-            fig.savefig(os.path.join(foldername,f'trade_chart_({symbol}).svg')) #trade_chart
-            product_detail += f"""\
-            <div align="center">\
+            fig.savefig(os.path.join(savedir,f'trade_chart_({symbol}).svg')) #trade_chart
+            plt.close()
+            product_detail += f"""
+            <div align="center">
                     <img src="trade_chart_({symbol}).svg" width="1000px;" style="margin-left:50px; padding:0">
                     <div align="center">
-                        <table border="1" width="600px" style="border-collapse:collapse" >
+                        <table border="1" width="800px" style="border-collapse:collapse" >
                             <tr align="center">
                                 <th width="14.3%">총손익</th>
                                 <th width="14.3%">총손익(틱)</th>
@@ -846,11 +859,11 @@ class System:
                                 <th width="14.3%">보유기간</th>
                                 <th width="14.3%">매매횟수</th>
                             </tr>
-                            <tr>
-                                <td width="14.3%">{product_result['총손익']:.0f}</td>
-                                <td width="14.3%">{product_result['총손익(틱)']:.0f}</td>
-                                <td width="14.3%">{product_result['평균손익(틱)']:.1f}</td>
-                                <td width="14.3%">{product_result['위험대비손익']:.0f}</td>
+                            <tr align="center">
+                                <td width="14.3%">{product_result['총손익']:,.0f}</td>
+                                <td width="14.3%">{product_result['총손익(틱)']:,.0f}</td>
+                                <td width="14.3%">{product_result['평균손익(틱)']:,.1f}</td>
+                                <td width="14.3%">{product_result['위험대비손익']:,.0f}</td>
                                 <td width="14.3%">{product_result['승률']:.2f} %</td>
                                 <td width="14.3%">{product_result['보유기간']:.0f}</td>
                                 <td width="14.3%">{product_result['매매회수']:.0f}</td>
@@ -859,7 +872,7 @@ class System:
                     </div>
             </div><br><br><br>
             """
-            trades.to_csv(os.path.join(foldername,f'trade_history_({symbol}).csv'))
+            pd.DataFrame(self.trades.log(symbol=symbol)).to_csv(os.path.join(savedir,f'trade_history_({symbol}).csv'))
 
         #템플릿파일 로드
         with open('report_template.html', encoding='utf-8') as f:
@@ -909,10 +922,11 @@ class System:
             product_detail = product_detail
         )
 
-        with open(os.path.join(foldername, '00_report.html'), 'w') as f:
+        with open(os.path.join(savedir, '00_report.html'), 'w') as f:
             f.write(report)
             
         # 상세 거래내역 생성 및 저장
+        """
         history = []
         for trade in self.trades.book:
             history.append([
@@ -931,24 +945,27 @@ class System:
                 trade.risk,
                 trade.lots,
                 trade.flame,
-                trade.exits[0]['exitdate'].strftime('%Y-%m-%d'),
-                trade.exits[0]['exitprice'],
-                trade.exits[0]['exitlots'],
-                trade.exits[0]['profit'],
-                trade.exits[0]['profit_ticks'],
-                trade.exits[0]['duration'],
-                trade.exits[0]['result'],
+                trade.exits[0]['exitdate'].strftime('%Y-%m-%d') if trade.exits else "",
+                trade.exits[0]['exitprice'] if trade.exits else "",
+                trade.exits[0]['exitlots'] if trade.exits else "",
+                trade.exits[0]['profit'] if trade.exits else "",
+                trade.exits[0]['profit_ticks'] if trade.exits else "",
+                trade.exits[0]['duration'] if trade.exits else "",
+                trade.exits[0]['result'] if trade.exits else "",
                 trade.commission,
                 trade.exittype,
                 trade.on_fire,
                 
             ])
-
         columns = ['id','name','entrydate','symbol','sector','position','entryprice','entrylots',\
                     'entryrisk','entryrisk_ticks','currentprice','stopprice','risk','lots','flame','exitdate',\
                     'exitprice','exitlots','profit','profit_ticks','duration','result','commission','exittype','on_fire']
         df = pd.DataFrame(columns=columns, data=history)
-        df.to_csv(os.path.join(foldername,f'trade_history.csv'))
+        """
+        pd.DataFrame(self.trades.log()).to_csv(os.path.join(savedir,f'trade_history.csv'))
+
+        # 자산 내역 생성 및 저장
+        pd.DataFrame(self.equity.log()).to_csv(os.path.join(savedir,f'equity_history.csv'))
 
 
 

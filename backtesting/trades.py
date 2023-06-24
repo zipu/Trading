@@ -58,6 +58,20 @@ class Trade:
         
         self.update_status(entryprice, stopprice)
 
+    def __str__(self):
+        return f"""
+        id: {self.id}
+        name: {self.name}
+        symbol: {self.symbol}
+        sector: {self.sector}
+        position: {self.position}
+        entry price: {self.entryprice}
+        entrylots: {self.entrylots}
+        entryrisk: {self.entryrisk}
+        result: {self.result}
+        on_fire: {self.on_fire}
+        """
+
     
     def add_exit(self, exitdate, exitprice, exitlots, exittype):
 
@@ -91,7 +105,7 @@ class Trade:
             self.symbol, self.position, currentprice, stopprice, self.lots)
         
         self.flame, _ = self.price_to_value(
-            self.symbol, self.position, currentprice, self.entryprice, self.lots)
+            self.symbol, self.position, self.entryprice, currentprice, self.lots)
 
         self.profit = sum([exit['profit'] for exit in self.exits])
         self.profit_ticks = sum([exit['profit_ticks'] for exit in self.exits])
@@ -136,7 +150,7 @@ class TradesBook:
         
         self.profit = 0 #누적 수익
         self.commission = 0 #누적 수수료
-        self._flame = 0
+        self._flame = 0 #평가 손익
         #self.margin = 0
         #self.risk = 0
         #self.commission = 0
@@ -167,7 +181,7 @@ class TradesBook:
             item = {
             'id':trade.id,
             'entrydate': trade.entrydate,
-            'exitdate': trade.exits[-1]['exitdate'] if not trade.on_fire else None,
+            #'exitdate': trade.exits[-1]['exitdate'] if not trade.on_fire else None,
             'name':trade.name,
             'symbol':trade.symbol,
             'sector':trade.sector,
@@ -176,28 +190,39 @@ class TradesBook:
             'entrylots':trade.entrylots,
             'entryrisk':trade.entryrisk,
             'entryrisk_ticks':trade.entryrisk_ticks,
-            'exits':trade.exits,
+            'commission':trade.commission,
+            #'exits':trade.exits,
             '#exits':len(trade.exits),
-            'currentprice':trade.currentprice,
-            'stopprice':trade.stopprice,
-            'risk':trade.risk,
-            'risk_ticks':trade.risk_ticks,
-            'lots':trade.lots,
-            'flame':trade.flame,
-            'profit':trade.profit,
-            'profit_ticks':trade.profit_ticks,
-            'duration':trade.duration,
-            'exittype':trade.exittype,
-            'result':trade.result,
-            'on_fire':trade.on_fire
             }
+
+            for i, exit in enumerate(trade.exits):
+                item[f'exit({i})_date'] = exit['exitdate']
+                item[f'exit({i})_price'] = exit['exitprice']
+                item[f'exit({i})_lots'] = exit['exitlots']
+                item[f'exit({i})_profit'] = exit['profit']
+                item[f'exit({i})_profit_ticks'] = exit['profit_ticks']
+                item[f'exit({i})_duration'] = exit['duration']
+                item[f'exit({i})_type'] = exit['exittype']
+            item['exitdate']=trade.exits[-1]['exitdate'] if trade.exits else None
+            item['profit']=trade.profit
+            item['profit_ticks']=trade.profit_ticks
+            item['duration'] = trade.exits[-1]['duration'] if trade.exits else None
+            item['result']=trade.result
+            item['currentprice']=trade.currentprice
+            item['stopprice']=trade.stopprice
+            item['risk']=trade.risk
+            item['risk_ticks']=trade.risk_ticks
+            item['lots']=trade.lots
+            item['flame']=trade.flame
+            item['on_fire']=trade.on_fire
+
 
             if all([item[k]==v for k,v in kwargs.items()]):
                 items.append(item)
+        
         return items
 
-        
-    
+
     def get(self, **kwargs):
         items = []
 

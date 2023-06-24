@@ -32,7 +32,7 @@
                 </tr>
                 <tr>
                     <th> 투자 원금</th>
-                    <td style="padding-left:10px"> {system_principal}</td>
+                    <td style="padding-left:10px"> {system_principal:,}</td>
                 </tr>
                 <tr>
                     <th> Heat System </th>
@@ -94,7 +94,7 @@
     </div>
     <div>
         <h2> 1. 종합 결과 </h2>
-        <img src="{equity_chart}" width="800px;" style="margin-left:50px; padding:0" align="center">
+        <img src="{equity_chart}" width="900px;" style="margin-left:50px; padding:0" align="center">
         <div align="center">
             <table border="1" width="800px" style="border-collapse:collapse" >
                 <tr align="center">
@@ -106,8 +106,8 @@
                     <th width="16.6%">MDD</th>
                 </tr>
                 <tr align="center">
-                    <td>{principal}</td>
-                    <td>{capital:.0f}</td>
+                    <td>$ {principal:,}</td>
+                    <td>$ {capital:,.0f}</td>
                     <td>{profit:.2f}</td>
                     <td>{bliss:.3f}</td>
                     <td>{cagr:.3f}</td>

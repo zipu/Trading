@@ -5,22 +5,22 @@ from tools.instruments import instruments
 
 class Equity:
     """
-    계좌 상태 정보
+    현재 자산 상태 정보
     """
-    def __init__(self, id, date, principal):
+    def __init__(self, id, date):
         self.id = id
         self.date=date 
-        self.principal=principal
-        self.capital=None
-        self.max_capital=principal
-        self.cash=None
-        self.security=None
-        self.fixed_capital=None
+        #self.principal=principal #초기투자금
+        self.capital=None #총자산 = 현금 + 증권평가액
+        self.max_capital=None #총자산의 최고치
+        self.cash=None #현금
+        self.security=None #증권평가액 + 증거금 (증거금은 묶여서 사용못하기 때문에)
+        self.fixed_capital=None #확정 자산 = 총자산 - 리스크
         self.profit=None #누적확정손익
         self.flame=None #평가손익
-        self.commission = None
+        self.commission = None #수수료
 
-        self.system_heat = None
+        self.system_heat = None 
         self.risk = None
         self.sector_heat = None
         self.sector_risk = None
@@ -31,7 +31,7 @@ class Equity:
         
 
 class EquityBook:
-    """ 시스템 재무 상태 기록 """
+    """ 자산 내ㅕㄱ """
     def __init__(self, principal, from_date):
 
         self.from_date = from_date
@@ -43,7 +43,7 @@ class EquityBook:
         self.capital=principal
         self.cash=principal
         self.security=0
-        self.fixed_capital=0
+        self.fixed_capital=0 #총자산 - 리스크
         self.profit=0 #누적손익
         self.flame = 0 #평가손익
         self.commission = 0
@@ -74,7 +74,7 @@ class EquityBook:
             item = {
             'id':equity.id,
             'date':equity.date,
-            'principal':equity.principal,
+            'principal': self.principal,
             'capital':equity.capital,
             'security':equity.security,
             'cash':equity.cash,
@@ -97,19 +97,21 @@ class EquityBook:
         return items
 
     def update(self, date, trades, heat):
-        equity = Equity(len(self.book)+1, date, self.principal)
+        equity = Equity(len(self.book)+1, date)
         self.book.append(equity)
         
         #자산 정보
         equity.capital = self.principal + trades.profit + trades.flame - trades.commission
-        if equity.capital <= 0:
+        equity.security = trades.margin + trades.flame
+        equity.cash = equity.capital - equity.security
+        equity.fixed_capital = equity.capital + trades.risk
+        
+        if equity.cash <= 0:
             """ 시스템 작동 중단"""
             return True 
         
         
-        equity.security = trades.margin + trades.flame
-        equity.cash = equity.capital - equity.security
-        equity.fixed_capital = equity.capital - trades.risk
+        
 
         #매매 성능
         equity.profit = trades.profit

@@ -1,0 +1,3 @@
+,id,entrydate,name,symbol,sector,position,entryprice,entrylots,entryrisk,entryrisk_ticks,commission,#exits,exit(0)_date,exit(0)_price,exit(0)_lots,exit(0)_profit,exit(0)_profit_ticks,exit(0)_duration,exit(0)_type,exitdate,profit,profit_ticks,duration,result,currentprice,stopprice,risk,risk_ticks,lots,flame,on_fire
+0,61,2003-01-30,CME NASDAQ 100 Index Mini,NQ,equity,Long,1256.340087890625,2,1530.0,153,5.98,1,2003-01-31,1218.090087890625,2.0,-1530.0,-153.0,1.0,stop,2003-01-31,-1530.0,-153,1.0,LOSE,1218.090087890625,1218.090087890625,0.0,0,0,-0.0,False
+1,65,2003-03-18,CME NASDAQ 100 Index Mini,NQ,equity,Long,1313.590087890625,2,5440.0,544,5.98,0,,,,,,,,,0.0,0,,,1737.1700439453125,1619.1700439453125,-4720.0,-472,2,16940.0,True
