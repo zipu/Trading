@@ -5,7 +5,7 @@ description: 시스템 설명
 #거래시장 정보
 #quotes_style: bo
 sectors: default
-instruments: ~ #['AD','W'] #~ #['AD', 'CL','C','LC', 'W','MD', 'NQ']
+instruments: ['AD']
 from_date: '2019-08-01'
 to_date: ~ #'2018-05-01'
 
