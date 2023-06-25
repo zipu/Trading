@@ -126,7 +126,7 @@ class Instrument:
         df.columns.names = (['field'])
         df.rename(columns = {'open_interest':'oi'}, inplace = True)
         
-        return Quotes(df, type='single')
+        return Quotes(df)
         #if format == 'numpy':
         #    return data
         #if format == 'pandas':
@@ -379,7 +379,7 @@ class Instruments(dict):
         df.columns = indexes
         df.columns.names = (['symbol', 'field'])
         file.close()
-        return Quotes(df[start:end], type='multiple')
+        return Quotes(df[start:end])
 
     def kibot_contracts_list(self):
         """

@@ -13,6 +13,8 @@ from matplotlib.ticker import FuncFormatter
 import matplotlib.pyplot as plt
 
 from tools.instruments import instruments
+from tools.quotes import Quotes
+
 from .trades import TradesBook
 from .equity import EquityBook
 from .heat import DefaultHeat
@@ -70,6 +72,9 @@ class System:
             abstract['max_trade_heat'],
             abstract['max_lots']
         )
+
+        #쇼핑백
+        self.bag = []
         
         #재무 상태 내역서 
         self.equity = EquityBook(self.principal, self.from_date)
@@ -77,11 +82,14 @@ class System:
         # 매매 내역서 
         self.trades = TradesBook(self.id)
         
+        # 시장 데이터 
+        quotes = Quotes(quotes[self.symbols])
+
 
         #지표 생성
-        self.metrics = pd.DataFrame() #지표 생성
-        self.metrics.attrs['name'] = self.name
-        self.create_metrics(abstract['metrics'], quotes)
+        #self.metrics = pd.DataFrame() #지표 생성
+        #self.metrics.attrs['name'] = self.name
+        self.metrics = self.create_metrics(abstract['metrics'], quotes)
         
         #생성된 지표 일봉데이터 결합
         quotes = pd.concat([quotes, self.metrics], axis=1) 
@@ -124,42 +132,50 @@ class System:
 
     def create_metrics(self, metrics, quotes):
         """
-        configurator 파일에 등록된 사용 인디케이터를 pd Dataframe으로 생성
-        - metrics: 등록할 지표 저보
-        - qutoes: 시장 일봉데이터
+        configurator 파일에 등록된 지표들을 pd Dataframe으로 생성
+        - metrics: 지표 데이터
+        - qutoes: 시장 데이터
+
+        차트 생성시 OHLC 차트위에 지표를 그릴지, 추가 axis를 만들어서 생성할지 구분하기 위해
+        각 metric은 2가지 속성값 중에 하나를 갖음
+        1. price: 가격 기반 지표. ohlc위에 그림
+        2. index: 별도의 axis 에 그림
+        지표별 속성은 qutoes의 attrs['metric_types'] 에서 확인가능
         """
+
+        # 이 시스템에서 사용할 상품목록에 한해서 지표 생성
+        #quotes = Quotes(quotes[self.symbols]) 
+
+        # 설정 파일에 [필드이름, 함수이름, 파라메터] 형식으로 지표가 저장되어 있음
+        # ex) [ema200, EMA, window=200]
+        # EMA는 quote 모듈에 등록된 함수로 지수이평을 파라메터에 맞게 생성해줌 
         lists = []
         for indicator in metrics:
-            #window = [x.split('=')[1] for x in indicator if 'window' in x][0]
             fieldname = indicator[0]
             ind = indicator[1]
             params = ','.join(indicator[2:])
-            #fieldname = f"{indicator[0]}{window}_{system['name']}"
-            
-            #kwargs = ','.join(indicator[1:])
             params = eval(f'dict({params})')
             series = getattr(quotes, ind)(fieldname=fieldname, **params)
             lists.append(series)
 
-        df = pd.concat([self.metrics]+lists, axis=1)
-        self.metrics = df.sort_index(axis=1, level=0, sort_remaining=False)
+        df = pd.concat(lists, axis=1)
+        df = df.sort_index(axis=1, level=0, sort_remaining=False)
 
         # plotting시 추가 axes 생성여부를 판단하기 위해 각 metric의 형식을 attribute로 저장
         metric_types = quotes.attrs['metric_types']
         numeric_type = {}
         for metric in self.abstract['metrics']:
             numeric_type[metric[0]] = [k for k,v in metric_types.items() if metric[1] in v][0]
-        self.metrics.attrs['type'] = numeric_type
+        df.attrs['type'] = numeric_type
 
         # OHLC 데이터가 없는 거래일에 metric 값은 Averaging 결과로써 존재할 수 있음. 
-        # 이를 NaN 값으로 변경 해줌
-        """
-        ohlc 데이타가 nan 인데도, averaging 과정에서 시그널이 있을 수 있음.
-        이를 nan으로 바꾸는 함수
-        """
+        # OHLC 데이터 Nan 인 날은 거래를 하지 않기 때문에 시그널도 NaN 값으로 변경 해줌
         for symbol in self.symbols:
             flag = quotes[symbol][['open','high','low','close']].isna().any(axis=1)
-            self.metrics.loc[flag, symbol] = np.nan
+            df.loc[flag, symbol] = np.nan
+
+        df.attrs['name'] = self.name
+        return df
 
 
 
@@ -167,25 +183,20 @@ class System:
         """
         사용자 정의된 매수, 매매 규칙에 해당되는 날에 시그널(True or False) 생성
         - rules: 매매규칙
-        - name: 매매이름
+        - name: 시그널 이름
         - quotes: 시장 일봉데이터
         """
-        if not rules:
-            signals = pd.DataFrame()
-            for symbol in self.symbols:
-                signals[symbol,name] = float('nan')
-            self.signals = pd.concat([self.signals, signals], axis=1)
-            self.signals.sort_index(axis=1, level=0, sort_remaining=False, inplace=True)
-            return
-        
-        #quotes = pd.concat([quotes, self.metrics], axis=1)
         signals = []
         for symbol in self.symbols:
             condition = rules
             df = quotes[symbol]
             fields = df.columns.to_list()
+            
+            # ex) 조건이 ma5>ma20 인경우
+            #     df['ma5']>df['ma20'] 의 pandas 조건식으로 변환
             for field in fields:
                 condition = re.sub(f"(?<![A-Za-z0-9])({field})(?![A-Za-z0-9])", f"df['{field}']", condition)
+
             #self.quotes[symbol,'buy_signal'] = eval(rule)
             signal = eval(condition)
             signal.name = (symbol, name)
@@ -199,14 +210,6 @@ class System:
         """
         사용자 정의된 규칙에 따른 스탑 가격 생성
         """
-        if not rules:
-            signals = pd.DataFrame()
-            for symbol in self.symbols:
-                signals[symbol,name] = float('nan')
-            self.signals = pd.concat([self.signals, signals], axis=1)
-            self.signals.sort_index(axis=1, level=0, sort_remaining=False, inplace=True)
-            return
-
         #quotes = pd.concat([quotes, self.metrics], axis=1)
         signals = []
         for symbol in self.symbols:
@@ -228,7 +231,9 @@ class System:
         """
         1. ohlc 데이타가 nan 이면 signal도 모두 nan으로 변경
         2. signal이 모두 nan인 날짜의 signal을 직전 거래일 값으로 변경
-
+         - x일에 매수신호 발생시, x+1일에 매수를 한다. 
+           그런데 x+1일이 거래 불가능한(OHLC = nan) 날이면 x+2일에 매수를 해야 한다.
+           x+2일에 매수를 진행하기 위해 x+1일의 신호를 x일과 같게 만듬
         """
         starts = {} #첫 거래 시작일
         for symbol in self.symbols:
@@ -249,19 +254,32 @@ class System:
     def trade(self, quote):
         """
         * 매매 진행
-        yesterday: 전거래일(yesterday) 장 종료 후 매매여부 판단 후
-        quote: 오늘 날짜의 quote 가격으로 매매 진행 
+        yesterday: 전거래일(yesterday) 장 종료 후 매매여부 판단 후 쇼핑바구니에 담기
+        today: 매매 당일 날짜의 가격으로 진입 
         
-        %% 매매시 고려 사항 및 진행 순서 %%
+        %% 매매 당일 고려 사항 및 진행 순서 %%
         1. 진행중인 매매가 있는가?
             Yes -> 청산신호 발생? Yes -> 청산
                                  No -> pass
             No -> pass
 
-        2. 신규진입 시그널이 있는가?
+        2. 바구니에 아이템 (신규매매)이 있는가?
             No -> pass
-            Yes -> heat 계산 -> 계약수 결정 -> 매매진입 -> heat 갱신
+            Yes -> heat 계산 -> 계약수 결정 -> 매매진입 -> heat 갱신 -> 바구니에서 삭제
+
+        3. 장종료 후 새로운 진입 시그널이 있는가?
+            No -> pass
+            Yes -> 바구니에 담기
         """
+        #for item in self.bag['exits']:
+            
+
+
+
+
+
+
+
         today = quote.name
         datesindex = self.metrics.index
         yesterday = datesindex[datesindex.get_loc(today) - 1]

@@ -16,18 +16,22 @@ class Quotes(pd.DataFrame):
      일별 상품 정보 (OHLC 등) 클래스로,
      pandas DataFrame의 하위 클래스
     """
-    def __init__(self, data, type='multiple'):
+    def __init__(self, data):
         """
         type: single or multi
         """
         super().__init__(data) 
-        self.type = type
 
         #metric 값들의 형식을 저장 (plotting 용도로 사용)
         self.attrs['metric_types'] = {
             'price': ['EMA','MA','MAX','MIN'],
             'index': ['ATR']
         }
+
+        if len(self.columns.names) == 1:
+            self.type = 'single'
+        elif  len(self.columns.names) == 2:
+            self.type = 'multiple'
 
         #if 'open_interest' in self.columns:
         #    self.rename(columns = {'open_interest':'oi'}, inplace = True)

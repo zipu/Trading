@@ -73,36 +73,9 @@ class Trader:
         if not isinstance(systems, list):
             systems = [systems]
             
-        # 사용자 제공 정보 검사
-        for system in systems:
-            #상품 목록 없으면 전체 상품목록으로 테스트 진행
-            if not system['instruments']:
-                system['instruments'] = self.instruments
-        
-        
         for id, system in enumerate(systems):
-            quotes = Quotes(self.quotes[system['instruments']], type='multiple')
+            #quotes = Quotes(self.quotes[system['instruments']])
             #print(quotes)
             self.systems.append(
-                    System(system, quotes, id)
+                    System(system, self.quotes, id)
                 )
-
-    
-    def create_report(self):
-        """ 결과 보고서 작성 """
-        #폴더 생성
-        foldername = self.name + '_' + datetime.today().strftime('%Y%m%d%H%M')
-        os.makedirs(foldername)
-
-        #1. 종합 결과
-        #equity chart 이미지 파일 생성 및 저장 
-        fig = self.equity_plot()
-        fig.tight_layout()
-        fig.savefig(os.path.join(foldername,'equity_chart.svg')) #equity_chart
-
-
-        result = self.summary().data.to_dict()
-        for k,v in result.items():
-            result[k] = v['Result']
-
-        
