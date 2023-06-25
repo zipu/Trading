@@ -38,10 +38,12 @@ class System:
 
         self.name = abstract['name']
         self.description = abstract['description']
-        self.symbols = abstract['instruments'] #상품 코드 목록
         
-        #if not self.symbols: #코드 목록이 없으면 srf 전체 목록으로 매매 진행
-        #    self.symbols = instruments.get_symbols('srf')
+        # 설정파일에 거래 상품 리스트가 없으면 db 전체 상품으로 진행
+        if abstract['instruments']:
+            self.symbols = abstract['instruments'] #상품 코드 목록
+        else:
+            self.symbols = quotes.columns.levels[0].to_list()
         
         self.instruments = [instruments[symbol] for symbol in self.symbols]
         
@@ -59,7 +61,8 @@ class System:
         #자본금
         self.principal = abstract['principal'] 
         
-        #한도 설정
+        #추후 Heat System을 모듈화 해서 사용할 계획 
+        #한도 설정 
         # 시스템 허용 위험한도 : 전체 자산 대비 
         self.heat = eval(abstract['heat_system'])( 
             abstract['max_system_heat'],
@@ -68,7 +71,7 @@ class System:
             abstract['max_lots']
         )
         
-        #재무 정보 
+        #재무 상태 내역서 
         self.equity = EquityBook(self.principal, self.from_date)
 
         # 매매 내역서 
@@ -898,10 +901,10 @@ class System:
             system_commission=abstract['commission'],
             system_skid= abstract['skid'],
             system_metrics='<br>'.join(['  ,  '.join(i) for i in abstract['metrics']]),
-            system_entry_rule_long=abstract['entry_rule']['long'],
-            system_entry_rule_short=abstract['entry_rule']['short'],
-            system_exit_rule_long=abstract['exit_rule']['long'],
-            system_exit_rule_short=abstract['exit_rule']['short'],
+            system_entry_rule_long=abstract['entry_rule']['long'].replace('<','&lt').replace('>','&gt') if abstract['entry_rule']['long'] else None,
+            system_entry_rule_short=abstract['entry_rule']['short'].replace('<','&lt').replace('>','&gt') if abstract['entry_rule']['short'] else None,
+            system_exit_rule_long=abstract['exit_rule']['long'].replace('<','&lt').replace('>','&gt') if abstract['exit_rule']['long'] else None ,
+            system_exit_rule_short=abstract['exit_rule']['short'].replace('<','&lt').replace('>','&gt') if abstract['exit_rule']['short'] else None,
             system_stop_rule_long=abstract['stop_rule']['long'],
             system_stop_rule_short=abstract['stop_rule']['short'],
             equity_chart='equity_chart.svg',
