@@ -106,12 +106,6 @@ class EquityBook:
         equity.cash = equity.capital - equity.security
         equity.fixed_capital = equity.capital + trades.risk
         
-        if equity.cash <= 0:
-            """ 시스템 작동 중단"""
-            return True 
-        
-        
-        
 
         #매매 성능
         equity.profit = trades.profit

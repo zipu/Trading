@@ -252,6 +252,7 @@ class System:
 
     
     def trade(self, quote):
+
         """
         * 매매 진행
         yesterday: 전거래일(yesterday) 장 종료 후 매매여부 판단 후 쇼핑바구니에 담기
@@ -271,18 +272,59 @@ class System:
             No -> pass
             Yes -> 바구니에 담기
         """
-        #for item in self.bag['exits']:
-            
-
-
-
-
-
-
-
         today = quote.name
-        datesindex = self.metrics.index
-        yesterday = datesindex[datesindex.get_loc(today) - 1]
+        #datesindex = self.metrics.index
+        #yesterday = datesindex[datesindex.get_loc(today) - 1]
+        
+       
+        oldbag = self.bag
+        self.bag = {'enter':[], 'exit':[]}
+        # 1. 기존 매매(fire) 청산
+        if oldbag['exits']:
+            for item in oldbag['exits']:
+                symbol = item['fire']
+                if quote[symbol][['open','high','low','close']].isna().any():
+                    self.bag.append(item)
+                else:
+                    fire = item['fire']
+                    self.exit(fire, quote[symbol], item['lots'], type=item['exittype'])
+
+            #자산 상태 업데이트
+            self.equity.update(today, self.trades, self.heat)
+
+        
+        # 2. 신규 매매 진입
+        if oldbag['enter']:
+            for item in oldbag['enter']:
+                symbol = item['fire']
+                if quote[symbol][['open','high','low','close']].isna().any():
+                    self.bag.append(item)
+
+                else: 
+                    self.enter(item['symbol'], quote[item['symbol']], item['position'])
+            self.equity.update(today, self.trades, self.heat)
+
+
+        # 3. 장 종료 후 내일 매매 여부 결정
+        signals = self.signals.loc[today]
+        for symbol in self.symbols:
+            if self.trades.get_on_fires(symbol=symbol):
+                continue
+            else:
+                self.bag['enter'].append({
+                    'symbol':symbol,
+                })
+
+
+
+
+
+
+
+
+
+
+        
         
         # 전일 장 종료 후 시그널로 매매 여부 판단
         signals = self.signals.loc[yesterday]
@@ -471,41 +513,38 @@ class System:
         매매가격결정 
          position: LONG or SHORT
          type: enter or exit
-            1)'buy' : open + (high - open) * skid
-            2)'sell': open - (open - low) * skid 
+            1)'buy' : open + skid
+            2)'sell': open - skid 
         """
-        tickunit = instruments[symbol].tickunit
+        skid = self.skid * instruments[symbol].tickunit
 
-        if position==LONG and type == 'enter':
-            tick_diff = (quote['high'] - quote['open'])/tickunit
-            skid = round(tick_diff*self.skid)*tickunit
+        if (position==LONG and type == 'enter') or\
+            (position==SHORT and type == 'exit'):
+            #tick_diff = (quote['high'] - quote['open'])/tickunit
+            #skid = round(tick_diff*self.skid)*tickunit
             return quote['open'] + skid
 
-        elif position == LONG and type == 'exit':
-            tick_diff = (quote['open'] - quote['low'])/tickunit
-            skid = round(tick_diff*self.skid)*tickunit
+        elif (position==LONG and type == 'exit') or\
+            (position==SHORT and type == 'enter'):
+            #tick_diff = (quote['high'] - quote['open'])/tickunit
+            #skid = round(tick_diff*self.skid)*tickunit
             return quote['open'] - skid
-
-        elif position == SHORT and type == 'enter':
-            tick_diff = (quote['open'] - quote['low'])/tickunit
-            skid = round(tick_diff*self.skid)*tickunit
-            return quote['open'] - skid
-
-        elif position == SHORT and type == 'exit':
-            tick_diff = (quote['high'] - quote['open'])/tickunit
-            skid = round(tick_diff*self.skid)*tickunit
-            return quote['open'] + skid
         
-    #def set_nans(self, df, quotes):
-    #    """
-    #    ohlc 데이타가 nan 인데도, averaging 과정에서 시그널이 있을 수 있음.
-    #    이를 nan으로 바꾸는 함수
-    #    df: self.signals 또는 self.metrics
-    #    """
-    #    for symbol in self.symbols:
-    #        flag = quotes[symbol][['open','high','low','close']].isna().any(axis=1)
-    #        df.loc[flag==True, symbol] = np.nan
+        #elif position == LONG and type == 'exit':
+        #    tick_diff = (quote['open'] - quote['low'])/tickunit
+        #    skid = round(tick_diff*self.skid)*tickunit
+        #    return quote['open'] - skid
 
+        #elif position == SHORT and type == 'enter':
+        #    tick_diff = (quote['open'] - quote['low'])/tickunit
+        #    skid = round(tick_diff*self.skid)*tickunit
+        #    return quote['open'] - skid
+
+        #elif position == SHORT and type == 'exit':
+        #    tick_diff = (quote['high'] - quote['open'])/tickunit
+        #    skid = round(tick_diff*self.skid)*tickunit
+        #    return quote['open'] + skid
+        
     
     def equity_plot(self):
         

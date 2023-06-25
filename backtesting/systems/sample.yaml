@@ -23,7 +23,7 @@ max_lots: 100 #상품당 최대 계약수
 
 #매매환경
 commission: 5.98 #왕복수수료(dollar)
-skid: 0.25 # entry price = open + (high-open)*skid for buy order
+skid: 20 # in ticks
 
 #지표
 metrics: 
