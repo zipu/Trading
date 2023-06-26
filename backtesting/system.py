@@ -31,6 +31,13 @@ class System:
         """
         self.id = id
         self.abstract = abstract
+
+        #매매환경
+        self.commission = abstract['commission']
+        self.skid = abstract['skid']
+        self.allow_pyramiding = abstract['allow_pyramiding']
+
+
         self.from_date = datetime.strptime(abstract['from_date'], '%Y-%m-%d')
         
         if not abstract['to_date']:
@@ -56,9 +63,7 @@ class System:
                 self.sectors[instruments[symbol].sector].append(symbol)
         
         
-        #매매환경
-        self.commission = abstract['commission']
-        self.skid = abstract['skid']
+        
 
         #자본금
         self.principal = abstract['principal'] 
@@ -73,8 +78,8 @@ class System:
             abstract['max_lots']
         )
 
-        #쇼핑백
-        self.bag = []
+        #주문 바구니
+        self.orderbag = {'enter':[], 'exit':[]}
         
         #재무 상태 내역서 
         self.equity = EquityBook(self.principal, self.from_date)
@@ -118,6 +123,8 @@ class System:
         if self.stop_rule['short']:
             self.create_stops(self.stop_rule['short'], 'stop_short', quotes)
 
+        self.signals.index = self.signals.index.astype('M8[ns]')
+        
         # OHLC 데이터 없는날, index type등 처리
         self.compensate_signals(quotes)
 
@@ -253,182 +260,96 @@ class System:
     
     def trade(self, quote):
 
-        """
-        * 매매 진행
-        yesterday: 전거래일(yesterday) 장 종료 후 매매여부 판단 후 쇼핑바구니에 담기
-        today: 매매 당일 날짜의 가격으로 진입 
-        
-        %% 매매 당일 고려 사항 및 진행 순서 %%
-        1. 진행중인 매매가 있는가?
-            Yes -> 청산신호 발생? Yes -> 청산
-                                 No -> pass
-            No -> pass
+        today = quote.name #오늘 날짜
+        signals = self.signals.loc[today] #오늘자 시그널
+        mask = quote.isna().groupby('symbol').all()
+        tradables = list(mask[~mask].index) #오늘 거래가능 상품 목록
 
-        2. 바구니에 아이템 (신규매매)이 있는가?
-            No -> pass
-            Yes -> heat 계산 -> 계약수 결정 -> 매매진입 -> heat 갱신 -> 바구니에서 삭제
 
-        3. 장종료 후 새로운 진입 시그널이 있는가?
-            No -> pass
-            Yes -> 바구니에 담기
-        """
-        today = quote.name
         #datesindex = self.metrics.index
         #yesterday = datesindex[datesindex.get_loc(today) - 1]
+        orderbag = self.orderbag.copy()
         
-       
-        oldbag = self.bag
-        self.bag = {'enter':[], 'exit':[]}
         # 1. 기존 매매(fire) 청산
-        if oldbag['exits']:
-            for item in oldbag['exits']:
-                symbol = item['fire']
-                if quote[symbol][['open','high','low','close']].isna().any():
-                    self.bag.append(item)
-                else:
-                    fire = item['fire']
-                    self.exit(fire, quote[symbol], item['lots'], type=item['exittype'])
+        if orderbag['exit']:
+            for fire in orderbag['exit']:
+                if fire.symbol in tradables:
+                    self.exit(fire, quote[fire.symbol], type='EXIT')
+                    self.orderbag['exit'].remove(fire)
 
             #자산 상태 업데이트
             self.equity.update(today, self.trades, self.heat)
 
         
         # 2. 신규 매매 진입
-        if oldbag['enter']:
-            for item in oldbag['enter']:
-                symbol = item['fire']
-                if quote[symbol][['open','high','low','close']].isna().any():
-                    self.bag.append(item)
-
-                else: 
+        if orderbag['enter']:
+            for item in orderbag['enter']:
+                if item['symbol'] in tradables: 
                     self.enter(item['symbol'], quote[item['symbol']], item['position'])
+                    self.orderbag['enter'].remove(item)
+
             self.equity.update(today, self.trades, self.heat)
 
 
-        # 3. 장 종료 후 내일 매매 여부 결정
-        signals = self.signals.loc[today]
-        for symbol in self.symbols:
-            if self.trades.get_on_fires(symbol=symbol):
-                continue
-            else:
-                self.bag['enter'].append({
-                    'symbol':symbol,
-                })
-
-
-
-
-
-
-
-
-
-
-        
-        
-        # 전일 장 종료 후 시그널로 매매 여부 판단
-        signals = self.signals.loc[yesterday]
-
-        """
-        1. 거래 가능 상품 선별
-          
-          상품마다 특정 날짜에 데이터가 존재하지 않을 수 있음
-          이 경우 해당 상품의 당일 시그널을 전일 시그널과 같도록 변경하고 거래 상품 목록에서 제외
-        """
-        #symbols = []
-        mask = quote.isna().groupby('symbol').all()
-        symbols = list(mask[~mask].index)
-        #print(symbols)
-
-        #for symbol in self.symbols:
-        #    ohlc = quote[symbol][['open','high','low','close']]
-
-        #    if ohlc.isna().any():
-        #        self.signals.loc[today, symbol] = self.signals.loc[yesterday, symbol].values
-        #    else:
-        #        symbols.append(symbol)
-
-        """
-        2. 진행 중인 매매 청산
-
-          진행중인 매매 상품 중 당일 거래 가능하면, 전일 청산 신호가 발생 했을 시 시초가 + skid 에 청산
-        """
-        
-        #진행중인 매매목록
-        fires = self.trades.get_on_fires() 
-        fires = [fire for fire in fires if fire.symbol in symbols]
-        
+        # 3. 장중 스탑 청산 및 장 종료 후 스탑 가격 및 상태 업데이트
+        fires = self.trades.get_on_fires()
+        fires = [fire for fire in fires if fire.symbol in tradables]
         for fire in fires:
-            symbol = fire.symbol
-            if fire.position == LONG and signals[symbol]['exit_long']:
-                self.exit(fire, quote[symbol], type='exit')
-                #자산 상태 업데이트
-                #if self.equity.update(today, self.trades, self.heat):
-                #  return True #시스템 가동 중단
+            today_low = quote[fire.symbol]['low']
+            today_high = quote[fire.symbol]['high']
+            today_close = quote[fire.symbol]['close']
 
-            elif fire.position == SHORT and signals[symbol]['exit_short']:
-                self.exit(fire, quote[symbol], type='exit')
-                #자산 상태 업데이트
-                #if self.equity.update(today, self.trades, self.heat):
-                #    return True #시스템 가동 중단
-        
-        #자산 상태 업데이트
-        if self.equity.update(today, self.trades, self.heat):
-                    return True #시스템 가동 중단
-        
-        """
-        3. 매매 진입
+            if fire.position == LONG and fire.stopprice >= today_low:
+                self.trades.add_exit(fire, today, fire.stopprice, fire.lots, 'STOP')
 
-          전일 진입 신호 발생시, 시초가(+skid) 진입
-        """
-        for symbol in symbols:
-            if signals[symbol].get('enter_long'):
-                #stopprice = signals_today[symbol]['stop_long']
-                self.enter(symbol, quote[symbol], LONG)
-                if self.equity.update(today, self.trades, self.heat):
-                    return True #시스템 가동 중단
-                
-            elif signals[symbol].get('enter_short'):
-                #stopprice = signals_today[symbol]['stop_short']
-                self.enter(symbol, quote[symbol], SHORT)
-                if self.equity.update(today, self.trades, self.heat):
-                    return True #시스템 가동 중단
-                
-            
-
-
-        #3. STOP 청산 및 stop 가격 업데이트
-        
-        #오늘 거래가능 종목중 진행중인 매매목록
-        fires = self.trades.get_on_fires() 
-        fires = [fire for fire in fires if fire.symbol in symbols]
-
-        for fire in fires:
-            if fire.position == LONG and fire.stopprice >= quote[fire.symbol]['low']:
-                self.trades.add_exit(fire, today, fire.stopprice, fire.lots, 'stop' )
-
-            elif fire.position == SHORT and fire.stopprice <= quote[fire.symbol]['high']:
-                self.trades.add_exit(fire, today, fire.stopprice, fire.lots, 'stop' )
+            elif fire.position == SHORT and fire.stopprice <= today_high:
+                self.trades.add_exit(fire, today, fire.stopprice, fire.lots, 'STOP')
 
             else:
                 if fire.position == LONG:
-                    stopprice = self.signals.loc[today][fire.symbol]['stop_long']
+                    stopprice = signals[fire.symbol]['stop_long']
                 elif fire.position == SHORT:
-                    stopprice = self.signals.loc[today][fire.symbol]['stop_short']
+                    stopprice = signals[fire.symbol]['stop_short']
 
                 fire.stopprice == stopprice
-                fire.update_status(quote[fire.symbol]['close'], stopprice)
+                fire.update_status(today_close, stopprice)
+        
+        if fires:
+            self.equity.update(today, self.trades, self.heat)
 
-        if self.equity.update(today, self.trades, self.heat):
-            return True #시스템 가동 중단
+        # 4. 장 종료 후 내일 매매 목록 바구니에 담기
+        for symbol in tradables:
+            fire = self.trades.get_on_fires(symbol=symbol)
+            signal = signals[symbol]
+            
+            if signal.get('enter_long'):
+                # 해당 상품이 이미 매매중이고 피라미딩을 허용안하는 시스템이면 건너뜀
+                if fire and not self.allow_pyramiding:
+                    pass
+                else: 
+                    self.orderbag['enter'].append({
+                        'symbol': symbol,
+                        'position': LONG
+                    })
+  
+            if signal.get('enter_short'):
+                # 해당 상품이 이미 매매중이고 피라미딩을 허용안하는 시스템이면 건너뜀
+                if fire and not self.allow_pyramiding:
+                    pass
+                else: 
+                    self.orderbag['enter'].append({
+                        'symbol': symbol,
+                        'position': SHORT
+                    })
 
-    
-                
+            if fire and (signal.get('exit_long') or signal.get('exit_long')):
+                self.orderbag['exit'].append(fire[0])
+
+        
     def enter(self, symbol, quote, position):
         """
         매매 진입
         """
-
         # 해당 상품을 이미 최대 계약수로 매매하고 있다면 스킵
         if sum([fire.lots for fire in self.trades.get_on_fires(symbol=symbol)]) >= self.heat.max_lots:
             return
@@ -455,20 +376,13 @@ class System:
         #order['entryrisk'] = risk
         order['entryrisk_ticks'] = risk_ticks
         
-        if risk_ticks < 0 :
-            #self.trades.reject(symbol, today, sector, position, order['entryprice'])
-            #return
+        if risk_ticks <= 0 :
             raise ValueError(f"리스크가 음수 또는 0일 수 없음: {order}")
         
-        elif risk_ticks == 0:
-            return 
-
         #계약수 결정
         lots = self.heat.calc_lots(symbol, sector, risk_ticks, self.equity)
         if lots == 0:
-            #self.trades.reject(symbol, today, sector, position, order['entryprice'])
             return
-        
         order['entrylots'] = lots
         order['entryrisk'] = risk_trade * lots
         order['commission'] = self.commission * lots
@@ -490,7 +404,7 @@ class System:
 
     
     
-    def exit(self, fire, quote, type='exit'):
+    def exit(self, fire, quote, type='EXIT'):
         """
         청산 
 
@@ -655,7 +569,6 @@ class System:
     def trade_result(self, level='name'):
         result = []
         tradelog = pd.DataFrame(self.trades.log())
-        tradelog = tradelog[tradelog['result'] != 'REJECT']
         for lev, table in tradelog.groupby(level):
             
             #period = table['duration'].mean()
@@ -794,19 +707,20 @@ class System:
 
 
         #5. Cummulative Profit Chart
-        cumprofit = trades.profit_ticks.cumsum()
+        #cumprofit = trades.profit_ticks.cumsum()
+        cumprofit = trades.profit.cumsum()
         idx = cumprofit.index
         ax[-2].plot(cumprofit, color='blue')
         ax[-2].axhline(y=0, linewidth=1, color='k')
-        ax[-2].set_title('Cummulative Profit(tick)', loc='left')
+        ax[-2].set_title('Cummulative Profit', loc='left')
 
 
-        #4. Tick-Profit Chart
-        #tick profit chart
+        #4. Profit Chart
+        #profit chart
         num_trades = len(trades)
-        ax[-1].bar(np.arange(1,num_trades+1), np.where(trades.position=='Long', trades.profit_ticks, 0), 0.3, color='red', alpha=0.6 )
-        ax[-1].bar(np.arange(1,num_trades+1), np.where(trades.position=='Short', trades.profit_ticks, 0), 0.3, color='blue', alpha=0.6 )
-        ax[-1].set_title('Profit (tick)', loc='left')
+        ax[-1].bar(np.arange(1,num_trades+1), np.where(trades.position=='Long', trades.profit, 0), 0.3, color='red', alpha=0.6 )
+        ax[-1].bar(np.arange(1,num_trades+1), np.where(trades.position=='Short', trades.profit, 0), 0.3, color='blue', alpha=0.6 )
+        ax[-1].set_title('Profit', loc='left')
         ax[-1].axhline(y=0, linewidth=1, color='k')
         #labels
 

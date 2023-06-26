@@ -102,7 +102,7 @@ class Trade:
         self.lots = self.entrylots - sum([exit['exitlots'] for exit in self.exits])
 
         self.risk, self.risk_ticks = self.price_to_value(
-            self.symbol, self.position, currentprice, stopprice, self.lots)
+            self.symbol, self.position, stopprice, currentprice, self.lots)
         
         self.flame, _ = self.price_to_value(
             self.symbol, self.position, self.entryprice, currentprice, self.lots)
@@ -116,6 +116,8 @@ class Trade:
         
         if self.lots == 0:
             self.on_fire = False
+            self.risk = 0
+            self.risk_ticks = 0
             self.duration = self.exits[-1]['duration'] if self.exits else 0
             self.result = 'WIN' if self.profit > 0 else 'LOSE'
             self.exittype = self.exits[-1]['exittype'] if self.exits else ''
@@ -278,30 +280,8 @@ class TradesBook:
         profit = fire.add_exit(exitdate, exitprice, exitlots, exittype)
         self.profit += profit
         if not fire.on_fire:
-            self.fires.pop(self.fires.index(fire))
+            self.fires.remove(fire)
        
-
-    def reject(self, symbol, entrydate, sector, position, entryprice):
-        trade = Trade(
-            id = len(self.book)+1,
-            entrydate = entrydate,
-            name = instruments[symbol].name,
-            symbol = symbol,
-            sector = sector,
-            position = position,
-            entryprice = entryprice,
-            entrylots = 0,
-            entryrisk = 0,
-            entryrisk_ticks = 0,
-            commission = 0,
-            stopprice = 0,
-        )
-        trade.on_fire = False
-        trade.result = 'REJECT'
-
-        self.book.append(trade)
-
-
     def update_status(self, fire, currentprice, stopprice):
         fire.update_status(currentprice, stopprice)
     

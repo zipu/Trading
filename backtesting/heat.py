@@ -33,27 +33,27 @@ class DefaultHeat:
         sector_heat = {k:v/status.capital for k,v in sector_risk.items()}
         return sector_heat, sector_risk
 
-    def calc_lots(self, symbol, sector, risk_ticks, status):
+    def calc_lots(self, symbol, sector, risk_ticks, equity):
         # 1계약 기준 리스크
         risk = risk_ticks*instruments[symbol].tickvalue
         
         # 바운더리
-        capital = status.capital
+        capital = equity.capital
         
         max_system_risk = capital * self.max_system_heat
         max_sector_risk = capital * self.max_sector_heat
         max_trade_risk = capital * self.max_trade_heat
         
         #현재 섹터 리스크
-        if status.sector_risk.get(sector):
-            sector_risk = status.sector_risk[sector]
+        if equity.sector_risk.get(sector):
+            sector_risk = equity.sector_risk[sector]
         else:
             sector_risk = 0
         
-        if risk + status.risk > max_system_risk:
+        if risk + equity.risk > max_system_risk:
             return 0
         else:
-            lots_system = int((max_system_risk - status.risk)/risk) 
+            lots_system = int((max_system_risk - equity.risk)/risk) 
 
         if risk + sector_risk > max_sector_risk:
             return 0

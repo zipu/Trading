@@ -53,17 +53,17 @@ class Trader:
         for date in dates[1:]:
             quote = self.quotes.loc[date]
 
-            for system in systems:
+            for system in systems.copy():
                 if date < system.from_date or date > system.to_date:
                     #시스템 설정 날짜범위 밖이면 패스
                     continue
                 else:
                     print(f"거래일: {date}, 시스템: {system.name} {time()-time0}sec" )
                     time0 = time()
-                    # 자산이 음수가 되면 system.trade 함수가 True 값을 리턴하고 거래를 종료함
-                    if system.trade(quote[system.symbols]):
+                    system.trade(quote[system.symbols])
+                    if system.equity.capital < 0:
                         print(f"###### 시스템 가동 종료: {system.name} #######")
-                        systems.pop(systems.index(system))
+                        systems.remove(systems)
 
         return
 

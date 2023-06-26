@@ -104,7 +104,7 @@ class EquityBook:
         equity.capital = self.principal + trades.profit + trades.flame - trades.commission
         equity.security = trades.margin + trades.flame
         equity.cash = equity.capital - equity.security
-        equity.fixed_capital = equity.capital + trades.risk
+        equity.fixed_capital = equity.capital - trades.risk
         
 
         #매매 성능
