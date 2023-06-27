@@ -97,7 +97,7 @@ class System:
         self.metrics = self.create_metrics(abstract['metrics'], quotes)
         
         #생성된 지표 일봉데이터 결합
-        quotes = pd.concat([quotes, self.metrics], axis=1) 
+        df = pd.concat([quotes, self.metrics], axis=1) 
 
         #매매 시그널 생성
         self.signals = pd.DataFrame() #시그널 생성
@@ -105,26 +105,30 @@ class System:
 
         self.entry_rule = abstract['entry_rule']
         if self.entry_rule['long']:
-            self.create_signal(self.entry_rule['long'], 'enter_long', quotes)
+            self.create_signal(self.entry_rule['long'], 'enter_long', df)
         
         if self.entry_rule['short']:
-            self.create_signal(self.entry_rule['short'], 'enter_short', quotes)
+            self.create_signal(self.entry_rule['short'], 'enter_short', df)
         
         self.exit_rule = abstract['exit_rule']
         if self.exit_rule['long']:
-            self.create_signal(self.exit_rule['long'], 'exit_long', quotes)
+            self.create_signal(self.exit_rule['long'], 'exit_long', df)
         if self.exit_rule['short']:
-            self.create_signal(self.exit_rule['short'], 'exit_short', quotes)
+            self.create_signal(self.exit_rule['short'], 'exit_short', df)
 
 
         self.stop_rule = abstract['stop_rule']
         if self.stop_rule['long']:
-            self.create_stops(self.stop_rule['long'], 'stop_long', quotes)
+            self.create_stops(self.stop_rule['long'], 'stop_long', df)
         if self.stop_rule['short']:
-            self.create_stops(self.stop_rule['short'], 'stop_short', quotes)
+            self.create_stops(self.stop_rule['short'], 'stop_short', df)
 
         self.signals.index = self.signals.index.astype('M8[ns]')
         
+
+        self.quotes = quotes.loc[self.from_date:self.to_date]
+        self.metrics = self.metrics.loc[self.from_date:self.to_date]
+        self.signals = self.signals.loc[self.from_date:self.to_date]
         # OHLC 데이터 없는날, index type등 처리
         #self.compensate_signals(quotes)
 
@@ -229,38 +233,9 @@ class System:
         self.signals.sort_index(axis=1, level=0, sort_remaining=False, inplace=True)
         #self.signals.index = self.signals.index.astype('M8[ns]')
 
-    def compensate_signals(self, quotes):
-        """
-        1. 인덱스 형식 object -> datetime 으로 변경
-        """
-        self.signals.index = self.signals.index.astype('M8[ns]')
+    def trade(self, today):
 
-        """
-        1. ohlc 데이타가 nan 이면 signal도 모두 nan으로 변경
-        2. signal이 모두 nan인 날짜의 signal을 직전 거래일 값으로 변경
-         - x일에 매수신호 발생시, x+1일에 매수를 한다. 
-           그런데 x+1일이 거래 불가능한(OHLC = nan) 날이면 x+2일에 매수를 해야 한다.
-           x+2일에 매수를 진행하기 위해 x+1일의 신호를 x일과 같게 만듬
-        """
-        starts = {} #첫 거래 시작일
-        for symbol in self.symbols:
-            flag = quotes[symbol][['open','high','low','close']].isna().any(axis=1)
-            self.signals.loc[flag, symbol] = np.nan
-            starts[symbol] = quotes[symbol][~flag].index[0]
-        
-        for symbol in self.symbols:
-            start = starts[symbol]
-            while self.signals[symbol].loc[start:].isna().all(axis=1).any():
-                idx = self.signals[symbol].loc[start:].isna().all(axis=1)
-                mask = idx[idx==True].index
-                self.signals.loc[mask, symbol] = self.signals[symbol].shift(1).loc[mask].values
-
-
-
-    
-    def trade(self, quote):
-
-        today = quote.name #오늘 날짜
+        quote = self.quotes.loc[today]
         signals = self.signals.loc[today] #오늘자 시그널
         mask = quote.isna().groupby('symbol').all()
         tradables = list(mask[~mask].index) #오늘 거래가능 상품 목록
@@ -600,6 +575,28 @@ class System:
                 })
         df.data.sort_values(by='총손익', ascending=False, inplace=True)
         return df
+
+    def product_detail_result(self, symbol):
+        """
+        상품별 매매 결과를 Highchart 그래프로 그리는 
+        html string을 리턴함
+        """
+        name = instruments[symbol].name
+        quote = self.quotes[symbol][['open','high','low','close']].dropna()
+        trades = pd.DataFrame(self.trades.log(symbol=symbol))
+        if len(trades) == 0:
+            return 
+        
+        # 차트 데이터 생성
+        # 1. ohlc 데이터 
+        quote.insert(0, 'date', quote.index.astype('int64')/1000000)
+        ohlc = quote.values.tolist()
+
+        # 2. metrics
+
+
+
+
 
     def detail_result(self, symbol, start=None, end=None):
         """

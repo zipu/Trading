@@ -47,23 +47,22 @@ class Trader:
         
         print("매매시작")
         dates = self.quotes.index
-        systems = self.systems.copy()
         
         time0=time()
         for date in dates[1:]:
-            quote = self.quotes.loc[date]
+            #quote = self.quotes.loc[date]
 
-            for system in systems.copy():
+            for system in self.systems.copy():
                 if date < system.from_date or date > system.to_date:
                     #시스템 설정 날짜범위 밖이면 패스
                     continue
                 else:
                     print(f"거래일: {date}, 시스템: {system.name}") #{time()-time0}sec" )
                     #time0 = time()
-                    system.trade(quote[system.symbols])
+                    system.trade(date)
                     if system.equity.capital < 0:
                         print(f"###### 시스템 가동 종료: {system.name} #######")
-                        systems.remove(systems)
+                        self.systems.remove(system)
         print("매매종료")
         return
 

@@ -181,6 +181,67 @@
         <figure class="highcharts-figure" style="width:1000px;">
             <div id="product-chart"></div>
         </figure>
+        <script src="ohlcdata.txt" type="text/javascript"></script>
+        <script>
+        Highcharts.stockChart('product-chart', {
+
+            chart: {
+                height: 600,
+                zoomType: 'x'
+            },
+            title: {
+                text: 'Product name'
+            },
+            yAxis: [{
+                    labels: {
+                        align: 'right',
+                        x: -3
+                    },
+                    title: {
+                        text: 'OHLC'
+                    },
+                    height: '60%',
+                    lineWidth: 1,
+                }, {
+                    labels: {
+                        align: 'right',
+                        x: -3
+                    },
+                    title: {
+                        text: 'Volume'
+                    },
+                    top: '65%',
+                    height: '35%',
+                    offset: 0,
+                    lineWidth: 1
+            }],
+            
+            rangeSelector: {
+                    selected: 1,
+                    enabled:false
+            },
+            navigator: { enabled: false	},
+            scrollbar: { enabled: false },
+
+            
+
+            series: [{
+                type: 'ohlc',
+                name: 'AAPL Stock Price',
+                data: ohlcdata,
+                dataGrouping: {
+                units: [[
+                        'week', // unit name
+                    [1] // allowed multiples
+                ], [
+                    'month',
+                    [1, 2, 3, 4, 6]
+                ]]
+            }
+        }]
+        });
+
+        </script>
         {product_detail}
     </div>
 
@@ -285,66 +346,6 @@ Highcharts.chart('performance-chart', {
     });
 </script>
 
-<script src="ohlcdata.txt" type="text/javascript"></script>
-<script>
-Highcharts.stockChart('product-chart', {
 
-    chart: {
-        height: 600,
-        zoomType: 'x'
-    },
-    title: {
-        text: 'Product name'
-    },
-    yAxis: [{
-            labels: {
-                align: 'right',
-                x: -3
-            },
-            title: {
-                text: 'OHLC'
-            },
-            height: '60%',
-            lineWidth: 1,
-        }, {
-            labels: {
-                align: 'right',
-                x: -3
-            },
-            title: {
-                text: 'Volume'
-            },
-            top: '65%',
-            height: '35%',
-            offset: 0,
-            lineWidth: 1
-    }],
-    
-    rangeSelector: {
-            selected: 1,
-			enabled:false
-    },
-    navigator: { enabled: false	},
-    scrollbar: { enabled: false },
-
-    
-
-    series: [{
-        type: 'ohlc',
-        name: 'AAPL Stock Price',
-        data: ohlcdata,
-        dataGrouping: {
-         units: [[
-                'week', // unit name
-             [1] // allowed multiples
-          ], [
-              'month',
-               [1, 2, 3, 4, 6]
-          ]]
-    }
-}]
-});
-
-</script>
 
 </html>
