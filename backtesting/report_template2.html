@@ -1,0 +1,350 @@
+<html>
+<head>
+    <script src="https://code.highcharts.com/stock/highstock.js"></script>
+    <script src="https://code.highcharts.com/modules/accessibility.js"></script>
+</head>
+<body>
+    <div align="center">
+        <h1> 시스템 성능 보고서 </h1>
+        <h3> 테스트 날짜: {today}</h3>
+        <div align="center">
+            <table border="1px solid black" width="800px" style="border-collapse:collapse">
+                <tr>
+                    <th width="20%"> 시스템명</th>
+                    <td style="padding-left:10px"> {system_name}</td>
+                </tr>
+                <tr>
+                    <th> 시스템 설명 </th>
+                    <td style="padding-left:10px"> {system_description}</td>
+                </tr>
+                <tr>
+                    <th> 섹터 구분 </th>
+                    <td style="padding-left:10px"> {system_sector}</td>
+                </tr>
+                <tr>
+                    <th> 거래 상품 </th>
+                    <td style="padding-left:10px"> {system_instruments}</td>
+                </tr>
+                <tr>
+                    <th> 거래시작일 </th>
+                    <td style="padding-left:10px"> {system_from_date}</td>
+                </tr>
+                <tr>
+                    <th> 거래종료일</th>
+                    <td style="padding-left:10px"> {system_to_date}</td>
+                </tr>
+                <tr>
+                    <th> 투자 원금</th>
+                    <td style="padding-left:10px"> {system_principal:,}</td>
+                </tr>
+                <tr>
+                    <th> Heat System </th>
+                    <td style="padding-left:10px"> {system_heat_system}</td>
+                </tr>
+                <tr>
+                    <th> Max system heat </th>
+                    <td style="padding-left:10px"> {system_max_system_heat}</td>
+                </tr>
+                <tr>
+                    <th> Max sector heat </th>
+                    <td style="padding-left:10px"> {system_max_sector_heat}</td>
+                </tr>
+                <tr>
+                    <th> Max trade heat </th>
+                    <td style="padding-left:10px"> {system_max_trade_heat}</td>
+                </tr>
+                <tr>
+                    <th> 매매당 최대 계약수 </th>
+                    <td style="padding-left:10px"> {system_max_lots}</td>
+                </tr>
+                <tr>
+                    <th> 수수료 </th>
+                    <td style="padding-left:10px"> {system_commission}</td>
+                </tr>
+                <tr>
+                    <th> skid </th>
+                    <td style="padding-left:10px"> {system_skid}</td>
+                </tr>
+                <tr>
+                    <th> 사용지표 </th>
+                    <td style="padding-left:10px"> {system_metrics}</td>
+                </tr>
+                <tr>
+                    <th rowspan="2"> 진입 시그널 </th>
+                    <td style="padding-left:10px"> LONG| {system_entry_rule_long}</td>
+                </tr>
+                <tr>
+                    <td style="padding-left:10px"> SHORT| {system_entry_rule_short}</td>
+                </tr>
+                <tr>
+                    <th rowspan="2"> 청산 시그널 </th>
+                    <td style="padding-left:10px"> LONG| {system_exit_rule_long}</td>
+                </tr>
+                <tr>
+                    <td style="padding-left:10px"> SHORT| {system_exit_rule_short}</td>
+                </tr>
+                <tr>
+                    <th rowspan="2"> STOP 시그널 </th>
+                    <td style="padding-left:10px"> LONG|  {system_stop_rule_long}</td>
+                </tr>
+                <tr>
+                    <td style="padding-left:10px"> SHORT|  {system_stop_rule_short}</td>
+                </tr>
+            </table><br><br>
+        </div>
+    </div>
+    <div align="center">
+        <h2> 1. 종합 결과 </h2>
+        <figure class="highcharts-figure" style="width:1000px;">
+            <div id="performance-chart"></div>
+        </figure>
+        <div align="center">
+            <table border="1" width="800px" style="border-collapse:collapse" >
+                <tr align="center">
+                    <th width="16.6%">투자금</th>
+                    <th width="16.6%">최종자산</th>
+                    <th width="16.6%">수익률</th>
+                    <th width="16.6%">Bliss</th>
+                    <th width="16.6%">CAGR</th>
+                    <th width="16.6%">MDD</th>
+                </tr>
+                <tr align="center">
+                    <td>$ {principal:,}</td>
+                    <td>$ {capital:,.0f}</td>
+                    <td>{profit:.2f}</td>
+                    <td>{bliss:.3f}</td>
+                    <td>{cagr:.3f}</td>
+                    <td>{mdd:.2f}</td>
+                </tr>
+            </table>
+            <br>
+            <table border="1" width="800px" style="border-collapse:collapse">
+                <tr align="center">
+                    <th width="16.6%">손익비</th>
+                    <th width="16.6%">승률</th>
+                    <th width="16.6%">위험대비손익</th>
+                    <th width="16.6%">평균손익</th>
+                    <th width="16.6%">평균수익</th>
+                    <th width="16.6%">평균손실</th>
+                </tr>
+                <tr align="center">
+                    <td>{ptr:.1f}</td>
+                    <td>{winrate:.2f} %</td>
+                    <td>{rtp:.2f}</td>
+                    <td>{avg_profit:.0f}</td>
+                    <td>{avg_win:.0f}</td>
+                    <td>{avg_loss:.0f}</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+    <div align="center" style="margin-top:100px">
+        <h2> 2. 섹터별 결과 </h2>
+        <div align="center">
+            <table border="1" width="800px" style="border-collapse:collapse">
+                <tr align="center">
+                    <th width="12.5%">섹터</th>
+                    <th width="12.5%">총손익</th>
+                    <th width="12.5%">평균손익</th>
+                    <th width="12.5%">표준편차</th>
+                    <th width="12.5%">위험대비손익</th>
+                    <th width="12.5%">승률</th>
+                    <th width="12.5%">보유기간</th>
+                    <th width="12.5%">매매횟수</th>
+                </tr>
+                {sector_table_rows}
+            </table>
+      </div>
+    </div>
+
+    <div align="center" style="margin-top:100px">
+        <h2> 3. 상품별 결과 </h2>
+        <div align="center">
+            <table border="1" width="800px" style="border-collapse:collapse">
+                <tr align="center">
+                    <th width="12.5%">이름</th>
+                    <th width="12.5%">총손익</th>
+                    <th width="12.5%">평균손익</th>
+                    <th width="12.5%">표준편차</th>
+                    <th width="12.5%">위험대비손익</th>
+                    <th width="12.5%">승률</th>
+                    <th width="12.5%">보유기간</th>
+                    <th width="12.5%">매매횟수</th>
+                </tr>
+                {product_table_rows}
+            </table>
+        </div>
+    </div>
+
+    <div align="center" style="margin-top:100px">
+        <h2> 4. 상품별 매매 성과 </h2>
+        <figure class="highcharts-figure" style="width:1000px;">
+            <div id="product-chart"></div>
+        </figure>
+        {product_detail}
+    </div>
+
+</body>
+
+<script src="equitydata.txt" type="text/javascript"></script>
+<script>
+    
+const data  =  JSON.parse(JSON.stringify(equitydata));
+Highcharts.chart('performance-chart', {
+        chart: {
+            height: 600,
+            zoomType: 'x'
+        },
+        title: {
+            text: '',
+            align: 'center'
+        },
+        xAxis: {
+            type: 'datetime'
+        },
+        yAxis: {
+            opposite: true,
+            title: {
+                text: 'Value'
+            }
+        },
+        legend: {
+            enabled: true
+        },
+        tooltip: {
+            shared: true,
+            split: false,
+            enabled: false,
+        },
+        plotOptions: {
+            line: {
+               marker: {
+                enabled: false
+             }
+            },
+            area: {
+                marker: {
+                    enabled: false
+                },
+                threshold: 100000
+            }
+        },
+
+        series: [{
+            
+            name: '총자산',
+            data: data.total_value,
+            type: 'line',
+            color: '#46309c',
+            zIndex: 100,
+            enableMouseTracking: false
+
+        },{
+            type: 'area',
+            name: '확정자산',
+            data: data.defined_value_p,
+            lineWidth:0,
+            color: 'green',
+            opacity: 0.4,
+            enableMouseTracking: false
+
+        },{
+            type: 'area',
+            name: '확정자산2',
+            data: data.defined_value_n,
+            lineWidth:0,
+            color: 'red',
+            opacity: 0.6,
+            showInLegend: false, 
+            enableMouseTracking: false
+
+        },{
+            name: '최대값',
+            data: data.max_value,
+            type: 'line',
+            color: '#eb8934',
+            lineWidth: 0.8,
+            enableMouseTracking: false
+        },{
+            name: '현금',
+            data: data.cash,
+            type: 'line',
+            color: '#252429',
+            lineWidth: 0.8,
+            enableMouseTracking: false
+        },
+        {
+            name: 'reference(10%)',
+            data: data.reference,
+            type: 'line',
+            dashStyle: 'longdash',
+            color: 'magenta',
+            lineWidth: 0.8,
+            enableMouseTracking: false
+        }]
+    });
+</script>
+
+<script src="ohlcdata.txt" type="text/javascript"></script>
+<script>
+Highcharts.stockChart('product-chart', {
+
+    chart: {
+        height: 600,
+        zoomType: 'x'
+    },
+    title: {
+        text: 'Product name'
+    },
+    yAxis: [{
+            labels: {
+                align: 'right',
+                x: -3
+            },
+            title: {
+                text: 'OHLC'
+            },
+            height: '60%',
+            lineWidth: 1,
+        }, {
+            labels: {
+                align: 'right',
+                x: -3
+            },
+            title: {
+                text: 'Volume'
+            },
+            top: '65%',
+            height: '35%',
+            offset: 0,
+            lineWidth: 1
+    }],
+    
+    rangeSelector: {
+            selected: 1,
+			enabled:false
+    },
+    navigator: { enabled: false	},
+    scrollbar: { enabled: false },
+
+    
+
+    series: [{
+        type: 'ohlc',
+        name: 'AAPL Stock Price',
+        data: ohlcdata,
+        dataGrouping: {
+         units: [[
+                'week', // unit name
+             [1] // allowed multiples
+          ], [
+              'month',
+               [1, 2, 3, 4, 6]
+          ]]
+    }
+}]
+});
+
+</script>
+
+</html>

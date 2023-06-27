@@ -58,13 +58,13 @@ class Trader:
                     #시스템 설정 날짜범위 밖이면 패스
                     continue
                 else:
-                    print(f"거래일: {date}, 시스템: {system.name} {time()-time0}sec" )
-                    time0 = time()
+                    print(f"거래일: {date}, 시스템: {system.name}") #{time()-time0}sec" )
+                    #time0 = time()
                     system.trade(quote[system.symbols])
                     if system.equity.capital < 0:
                         print(f"###### 시스템 가동 종료: {system.name} #######")
                         systems.remove(systems)
-
+        print("매매종료")
         return
 
 

@@ -126,7 +126,7 @@ class System:
         self.signals.index = self.signals.index.astype('M8[ns]')
         
         # OHLC 데이터 없는날, index type등 처리
-        self.compensate_signals(quotes)
+        #self.compensate_signals(quotes)
 
         #self.set_nans(self.metrics, quotes)
         #self.set_nans(self.signals, quotes)
@@ -532,14 +532,14 @@ class System:
             'Bliss': self.equity.cagr/self.equity.mdd,
             'CAGR': self.equity.cagr,
             'MDD': self.equity.mdd,
-            '손익비': sum([t.profit for t in win_trades])/sum([t.profit for t in lose_trades]),
-            '승률': len(win_trades) / cnt,
-            '위험대비손익': sum([t.profit/t.entryrisk for t in trades])/cnt,
-            '평균손익': sum([t.profit for t in trades])/cnt,
-            '평균수익': sum([t.profit for t in win_trades])/len(win_trades),
-            '평균손실': sum([t.profit for t in lose_trades])/len(lose_trades),
+            '손익비': sum([t.profit for t in win_trades])/sum([t.profit for t in lose_trades]) if lose_trades else 'inf',
+            '승률': len(win_trades) / cnt if cnt else '',
+            '위험대비손익': sum([t.profit/t.entryrisk for t in trades])/cnt if cnt else '',
+            '평균손익': sum([t.profit for t in trades])/cnt if cnt else '',
+            '평균수익': sum([t.profit for t in win_trades])/len(win_trades) if win_trades else 0,
+            '평균손실': sum([t.profit for t in lose_trades])/len(lose_trades) if lose_trades else 0,
             #'손익표준편차': trade.profit.std(),
-            '보유기간': sum(t.duration for t in trades)/cnt,
+            '보유기간': sum(t.duration for t in trades)/cnt if cnt else '',
             '매매회수': cnt
         }
         
@@ -861,8 +861,8 @@ class System:
             system_description = abstract['description'],
             system_sector=abstract['sectors'],
             system_instruments=', '.join(abstract['instruments']),
-            system_from_date=abstract['from_date'],
-            system_to_date=abstract['to_date'],
+            system_from_date=self.from_date.strftime('%Y-%m-%d'),
+            system_to_date=self.to_date.strftime('%Y-%m-%d'),
             system_principal=abstract['principal'],
             system_heat_system=abstract['heat_system'],
             system_max_system_heat=abstract['max_system_heat'],
