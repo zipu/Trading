@@ -672,12 +672,21 @@ class System:
                 'name': metric,
                 'data': metrics[['date',metric]].values.tolist()
             })
+        
+        #2-2 별도 axis에 나타낼 지표
+        metrics_separated = []
+        for metric in metric_type['index']:
+            metrics_separated.append({
+                'name': metric,
+                'data': metrics[['date',metric]].values.tolist()
+            })
 
         return {
             'wins': wins,
             'loses': loses,
             'neutrals': neutrals,
-            'metrics_with_ohlc': metrics_with_ohlc
+            'metrics_with_ohlc': metrics_with_ohlc,
+            'metrics_separated': metrics_separated
         }
 
 

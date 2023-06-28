@@ -31,6 +31,7 @@ metrics:
  - [ema50, EMA, window=50]
  - [ema200, EMA, window=200]
  - [volatility, ATR, window=30]
+ - [atr, ATR, window=300]
  - [min50, MIN, window=50]
  - [max20, MAX, window=20]
 

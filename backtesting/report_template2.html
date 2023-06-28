@@ -391,28 +391,14 @@ Highcharts.chart('performance-chart', {
             },
             colors: ['#32a852','#9e7116', '#7d197a','#586ba3','#660719','#d6c313'],
             yAxis: [{
-                    labels: {
-                        align: 'right',
-                        x: -3
-                    },
+                    id: 'ohlc',
+                    opposite: false,
                     title: {
-                        text: 'OHLC'
+                        text: 'OHLC',
                     },
-                    height: '60%',
-                    lineWidth: 1,
-                }, {
-                    labels: {
-                        align: 'right',
-                        x: -3
-                    },
-                    title: {
-                        text: 'Volume'
-                    },
-                    top: '65%',
-                    height: '35%',
-                    offset: 0,
-                    lineWidth: 1
-            }],
+                    height: 471,
+                    offset:0
+                }],
             
             rangeSelector: {
                     selected: 1,
@@ -443,7 +429,7 @@ Highcharts.chart('performance-chart', {
                 };
                 },
                 shared: true,
-                pointFormat: '{series.name}: <b>{point.y}</b><br/>',
+                //pointFormat: '{series.name}: <b>{point.y}</b><br/>',
                 valueDecimals: 2,
                 shadow: false,
                 borderWidth: 0,
@@ -453,6 +439,7 @@ Highcharts.chart('performance-chart', {
                 type: 'ohlc',
                 name: 'win',
                 data: detail.chartdata.wins,
+                yAxis: 'ohlc',
                 color: 'red',
                 showInLegend: false, 
                 states: { hover: { enabled: false } }, 
@@ -460,6 +447,7 @@ Highcharts.chart('performance-chart', {
                 type: 'ohlc',
                 name: 'lose',
                 data: detail.chartdata.loses,
+                yAxis: 'ohlc',
                 color: 'blue',
                 showInLegend: false, 
                 states: { hover: { enabled: false } },
@@ -467,19 +455,52 @@ Highcharts.chart('performance-chart', {
                 type: 'ohlc',
                 name: 'neutral',
                 data: detail.chartdata.neutrals,
+                yAxis: 'ohlc',
                 color: 'black',
                 showInLegend: false, 
                 states: { hover: { enabled: false } },
             }]
         });
+        // ohlc 차트와 함께 나타낼 지표 그리기
         for (metric of chartdata.metrics_with_ohlc){
             product_chart.addSeries({  
                 type: 'line',                      
                 name: metric.name,
                 data: metric.data,
+                yAxis: 'ohlc',
                 lineWidth: 0.8
             }, false);
         };
+        // 별도 axis에 나타낼 지표 그리기
+        let metrics = chartdata.metrics_separated;
+        let chartheight = product_chart.chartHeight;
+        const height = 150;
+        if (metrics){
+            for (i=0; i<metrics.length; i++){
+                chartheight += height;
+                let metric = metrics[i];
+                product_chart.setSize(undefined, chartheight);
+                product_chart.addAxis({
+                        id:metric.name,
+                        opposite:false,
+                        title: { 
+                            text: metric.name,
+                        },
+                        top: 500+i*height,
+                        height: height,
+                        offset:0
+                });
+                product_chart.addSeries({
+                    type: 'line',                      
+                    name: metric.name,
+                    data: metric.data,
+                    yAxis: metric.name,
+                    lineWidth: 1.2
+                 }, false);
+
+            };
+        };
+        
         product_chart.redraw();
     };
 
