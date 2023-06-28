@@ -376,7 +376,8 @@ Highcharts.chart('performance-chart', {
         figure.appendChild(div);
         parent.appendChild(figure);
 
-        Highcharts.stockChart('product-chart-'+detail.symbol, {
+        let chartdata = detail.chartdata;
+        var product_chart = Highcharts.stockChart('product-chart-'+detail.symbol, {
 
             chart: {
                 height: 600,
@@ -385,6 +386,10 @@ Highcharts.chart('performance-chart', {
             title: {
                 text: detail.name
             },
+            legend: {
+                enabled: true
+            },
+            colors: ['#32a852','#9e7116', '#7d197a','#586ba3','#660719','#d6c313'],
             yAxis: [{
                     labels: {
                         align: 'right',
@@ -415,26 +420,67 @@ Highcharts.chart('performance-chart', {
             },
             navigator: { enabled: false	},
             scrollbar: { enabled: false },
-
-            
-
+            plotOptions: {
+                line:{
+                    lineWidth:1,
+                    states:{
+                        hover:{
+                            enabled:false
+                        }
+                    }
+                },
+                series: {
+                    states: {
+                        inactive: { opacity: 1 },
+                    }
+                }
+            },
+            tooltip: {
+                positioner: function() {
+                return {
+                    x: this.chart.plotLeft,
+                    y: this.chart.plotTop
+                };
+                },
+                shared: true,
+                pointFormat: '{series.name}: <b>{point.y}</b><br/>',
+                valueDecimals: 2,
+                shadow: false,
+                borderWidth: 0,
+                backgroundColor: 'rgba(255,255,255,0.8)'
+            },
             series: [{
                 type: 'ohlc',
                 name: 'win',
                 data: detail.chartdata.wins,
                 color: 'red',
+                showInLegend: false, 
+                states: { hover: { enabled: false } }, 
             },{
                 type: 'ohlc',
                 name: 'lose',
                 data: detail.chartdata.loses,
                 color: 'blue',
+                showInLegend: false, 
+                states: { hover: { enabled: false } },
             },{
                 type: 'ohlc',
                 name: 'neutral',
                 data: detail.chartdata.neutrals,
                 color: 'black',
+                showInLegend: false, 
+                states: { hover: { enabled: false } },
             }]
         });
+        for (metric of chartdata.metrics_with_ohlc){
+            product_chart.addSeries({  
+                type: 'line',                      
+                name: metric.name,
+                data: metric.data,
+                lineWidth: 0.8
+            }, false);
+        };
+        product_chart.redraw();
     };
 
 </script>

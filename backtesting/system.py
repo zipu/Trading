@@ -656,10 +656,28 @@ class System:
         loses = quote.loc[lose_dates].values.tolist()
         neutrals = quote.loc[neutral_dates].values.tolist()
 
+        #2. 지표 데이터
+        metrics = self.metrics[symbol].dropna()
+        metrics.insert(0, 'date', metrics.index.astype('int64')/1000000)
+
+        metric_type = {
+            'price':[k for k, v in self.metrics.attrs['type'].items() if v=='price' ],
+            'index':[k for k, v in self.metrics.attrs['type'].items() if v=='index' ]
+        }
+
+        #2-1. ohlc 차트와 함께 나타낼 지표
+        metrics_with_ohlc = []
+        for metric in metric_type['price']:
+            metrics_with_ohlc.append({
+                'name': metric,
+                'data': metrics[['date',metric]].values.tolist()
+            })
+
         return {
             'wins': wins,
             'loses': loses,
-            'neutrals': neutrals
+            'neutrals': neutrals,
+            'metrics_with_ohlc': metrics_with_ohlc
         }
 
 
