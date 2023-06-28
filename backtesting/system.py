@@ -681,12 +681,23 @@ class System:
                 'data': metrics[['date',metric]].values.tolist()
             })
 
+        #3. 누적수익 곡선
+        trades['date'] = trades['exitdate'].values.astype('int64')/1000000
+        trades['cum_profit'] = trades['profit'].cumsum()
+        trades.dropna(inplace=True)
+        cum_profit = trades[['date','cum_profit']].values.tolist()
+        win_profit = trades[trades['profit']>=0][['date','profit']].values.tolist()
+        lose_profit =  trades[trades['profit']<0][['date','profit']].values.tolist()
+
         return {
             'wins': wins,
             'loses': loses,
             'neutrals': neutrals,
             'metrics_with_ohlc': metrics_with_ohlc,
-            'metrics_separated': metrics_separated
+            'metrics_separated': metrics_separated,
+            'cum_profit': cum_profit,
+            'win_profit': win_profit,
+            'lose_profit':lose_profit
         }
 
 

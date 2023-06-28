@@ -232,7 +232,10 @@ const chartdata  =  data.performance.chartdata//JSON.parse(JSON.stringify(perfor
 Highcharts.chart('performance-chart', {
         chart: {
             height: 600,
-            zoomType: 'x'
+            zoomType: 'x',
+            zooming: {
+                    mouseWheel: false
+                }
         },
         title: {
             text: '',
@@ -381,7 +384,10 @@ Highcharts.chart('performance-chart', {
 
             chart: {
                 height: 600,
-                zoomType: 'x'
+                zoomType: 'x',
+                zooming: {
+                    mouseWheel: false
+                }
             },
             title: {
                 text: detail.name
@@ -423,18 +429,19 @@ Highcharts.chart('performance-chart', {
             },
             tooltip: {
                 positioner: function() {
-                return {
-                    x: this.chart.plotLeft,
-                    y: this.chart.plotTop
-                };
+                    return {
+                        x: this.chart.plotLeft,
+                        y: this.chart.plotTop
+                    };
                 },
-                shared: true,
+                //shared: true,
                 //pointFormat: '{series.name}: <b>{point.y}</b><br/>',
                 valueDecimals: 2,
                 shadow: false,
                 borderWidth: 0,
                 backgroundColor: 'rgba(255,255,255,0.8)'
             },
+
             series: [{
                 type: 'ohlc',
                 name: 'win',
@@ -461,6 +468,7 @@ Highcharts.chart('performance-chart', {
                 states: { hover: { enabled: false } },
             }]
         });
+
         // ohlc 차트와 함께 나타낼 지표 그리기
         for (metric of chartdata.metrics_with_ohlc){
             product_chart.addSeries({  
@@ -471,13 +479,16 @@ Highcharts.chart('performance-chart', {
                 lineWidth: 0.8
             }, false);
         };
+
         // 별도 axis에 나타낼 지표 그리기
         let metrics = chartdata.metrics_separated;
         let chartheight = product_chart.chartHeight;
-        const height = 150;
+        let top = 500; //차트 포지션 용
+        const height = 100;
         if (metrics){
             for (i=0; i<metrics.length; i++){
                 chartheight += height;
+                
                 let metric = metrics[i];
                 product_chart.setSize(undefined, chartheight);
                 product_chart.addAxis({
@@ -486,9 +497,10 @@ Highcharts.chart('performance-chart', {
                         title: { 
                             text: metric.name,
                         },
-                        top: 500+i*height,
+                        top: top,
                         height: height,
-                        offset:0
+                        offset:0,
+                      
                 });
                 product_chart.addSeries({
                     type: 'line',                      
@@ -496,12 +508,76 @@ Highcharts.chart('performance-chart', {
                     data: metric.data,
                     yAxis: metric.name,
                     lineWidth: 1.2
-                 }, false);
+                }, false);
 
+                top += height;
             };
         };
+
+        //누적수익 차트 그리기
+        let cum_profit = chartdata.cum_profit;
+        chartheight += height;
+        product_chart.setSize(undefined, chartheight);
+        product_chart.addAxis({
+            id:'cum_profit',
+            opposite:false,
+            title: { 
+                text: 'Cum. Profit',
+            },
+            top: top,
+            height: height,
+            offset:0,
+        
+        });
+        product_chart.addSeries({
+                    type: 'line',                      
+                    name: 'cummulative profit',
+                    data: cum_profit,
+                    yAxis: 'cum_profit',
+                    lineWidth: 1.2,
+                    color: 'blue'
+                }, false);
+
+        //개별수익 차트 그리기
+        let win_profit = chartdata.win_profit;
+        let lose_profit = chartdata.lose_profit;
+        
+        chartheight += height;
+        top += height;
+        product_chart.setSize(undefined, chartheight);
+        product_chart.addAxis({
+            id:'profit',
+            opposite:false,
+            title: { 
+                text: 'Profit',
+            },
+            top: top,
+            height: height,
+            offset:0,
+        
+        });
+        product_chart.addSeries({
+                    type: 'column',                      
+                    name: 'loses',
+                    data: win_profit,
+                    yAxis: 'profit',
+                    color: 'red',
+                    showInLegend: false, 
+                    states: { hover: { enabled: false } },
+                }, false);
+        product_chart.addSeries({
+            type: 'column',                      
+            name: 'wins',
+            data: lose_profit,
+            yAxis: 'profit',
+            color: 'blue',
+            showInLegend: false, 
+            states: { hover: { enabled: false } },
+        }, false);
         
         product_chart.redraw();
+
+        
     };
 
 </script>
