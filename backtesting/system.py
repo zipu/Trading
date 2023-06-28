@@ -31,7 +31,7 @@ class System:
         """
         self.id = id
         self.abstract = abstract
-
+        
         #매매환경
         self.commission = abstract['commission']
         self.skid = abstract['skid']
@@ -47,7 +47,7 @@ class System:
 
         self.name = abstract['name']
         self.description = abstract['description']
-        
+
         # 설정파일에 거래 상품 리스트가 없으면 db 전체 상품으로 진행
         if abstract['instruments']:
             self.symbols = abstract['instruments'] #상품 코드 목록
@@ -434,7 +434,63 @@ class System:
         #    skid = round(tick_diff*self.skid)*tickunit
         #    return quote['open'] + skid
         
+    def performance(self):
+        """
+        시스템 종합 성능 보고 
+        """
+
+        #1. 차트 데이터 
+        equity  = pd.DataFrame(self.equity.log())\
+                    .set_index('date')\
+                    .groupby(by='date').last()
+        rate = 0.1 #interest rate
+        equity['date'] = equity.index.values.astype('int64')/1000000
+        equity['cash'] = equity.capital - equity.flame
+        equity['reference'] = equity.principal*np.exp(rate*((equity.index - equity.index[0])/np.timedelta64(365,'D')))
+        
+        total_value = equity[['date','capital']].round().values.tolist()
+        defined_value_p = equity[equity['fixed_capital']>=equity.principal][['date','fixed_capital']].round().values.tolist()
+        defined_value_n = equity[equity['fixed_capital']<equity.principal][['date','fixed_capital']].round().values.tolist()
+        max_value = equity[['date','max_capital']].round().values.tolist()
+        cash = equity[['date','cash']].round().values.tolist()
+        reference = equity[['date','reference']].values.tolist()
+
+        chart_data = {
+            'total_value' :  total_value,
+            'defined_value_p': defined_value_p,
+            'defined_value_n': defined_value_n,
+            'max_value': max_value,
+            'cash': cash,
+            'reference': reference,
+        }
+
+        #2. 성능 데이터 
+        win_trades = self.trades.get(result='WIN')
+        lose_trades = self.trades.get(result='LOSE')
+        trades = win_trades + lose_trades
+        cnt = len(trades)
+
+        performance = {
+            'capital': self.equity.capital,
+            'profit': self.equity.profit,
+            'profit_rate': (self.equity.capital / self.principal),
+            'bliss': self.equity.cagr/self.equity.mdd if self.equity.mdd > 0 else '',
+            'cagr': self.equity.cagr,
+            'mdd': self.equity.mdd,
+            #손익비
+            'avg_ptl': sum([t.profit for t in win_trades])/sum([t.profit for t in lose_trades]) if lose_trades else 'inf', 
+            'profit_to_risk': sum([t.profit/t.entryrisk for t in trades])/cnt if cnt else '',
+            'winrate': len(win_trades)/cnt if cnt else 0,
+            'avg_profit': sum([t.profit for t in trades])/cnt if cnt else '',
+            'avg_win': sum([t.profit for t in win_trades])/len(win_trades) if win_trades else 0,
+            'avg_lose': sum([t.profit for t in lose_trades])/len(lose_trades) if lose_trades else 0,
+            'duration': sum(t.duration for t in trades)/cnt if cnt else '',
+            'num_trades': cnt,
+            'chartdata': chart_data       
+        }
+        return performance
     
+
     def equity_plot(self):
         
         equitylog = pd.DataFrame(self.equity.log()).set_index('date')
@@ -551,48 +607,60 @@ class System:
             
             trade = {
                 #'symbol': symbol,
-                '구분': lev,#self.pinfo[symbol]['name'],
-                '총손익': table.profit.sum()+table.flame.sum(),
-                '평균손익': table.profit.mean(),
-                '표준편차': table.profit.std(),
-                '위험대비손익': (table.profit/table.entryrisk).mean(),
-                '승률': len(table[table.profit > 0])/len(table),
-                '보유기간': table.duration.mean(),
-                '매매회수': len(table)
+                'name': lev,#self.pinfo[symbol]['name'],
+                'profit': table.profit.sum()+table.flame.sum(),
+                'avg_profit': table.profit.mean(),
+                'profit_to_risk': 100*(table.profit/table.entryrisk).mean(),
+                'winrate': 100*len(table[table.profit > 0])/len(table),
+                'duration': table.duration.mean(),
+                'num_trades': len(table)
             }
             result.append(trade)
-        df = pd.DataFrame(result)
-        df.set_index('구분', inplace=True)
-        #del df.index.name
-        #styling
-        df = df.style.format({
-                    '총손익': "{:.0f}",
-                    '평균손익': "{:.0f}",
-                    '표준편차': "{:.2f}",
-                    '위험대비손익': "{:.2%}",
-                    '승률': "{:.1%}",
-                    #'# trades': "{:.f}"
-                })
-        df.data.sort_values(by='총손익', ascending=False, inplace=True)
-        return df
+        #df = pd.DataFrame(result)
+        #df.set_index('구분', inplace=True)
+        #df.data.sort_values(by='총손익', ascending=False, inplace=True)
+        return result
 
     def product_detail_result(self, symbol):
         """
         상품별 매매 결과를 Highchart 그래프로 그리는 
         html string을 리턴함
         """
+        from functools import reduce
+        
         name = instruments[symbol].name
         quote = self.quotes[symbol][['open','high','low','close']].dropna()
+        quote.insert(0, 'date', quote.index.astype('int64')/1000000)
         trades = pd.DataFrame(self.trades.log(symbol=symbol))
         if len(trades) == 0:
-            return 
+            return {}
         
         # 차트 데이터 생성
-        # 1. ohlc 데이터 
-        quote.insert(0, 'date', quote.index.astype('int64')/1000000)
-        ohlc = quote.values.tolist()
+        # 1. ohlc 데이터 수익 & 손실 매매 구분
+        win_masks = []
+        lose_masks =[]
+        for idx, row in trades.iterrows():
+            mask = (quote.index >= row['entrydate']) & (quote.index <= row['exitdate'])
+            if row['result'] == 'WIN':
+                win_masks.append(mask)
+            elif row['result'] == 'LOSE':
+                lose_masks.append(mask)
 
-        # 2. metrics
+        win_mask = reduce(np.logical_or, win_masks) if win_masks else quote['date'] == -1
+        lose_mask = reduce(np.logical_or, lose_masks) if lose_masks else quote['date'] == -1
+
+        win_dates = quote[win_mask].index
+        lose_dates = quote[lose_mask].index
+        neutral_dates = quote[~win_mask & ~lose_mask].index
+        wins = quote.loc[win_dates].values.tolist()
+        loses = quote.loc[lose_dates].values.tolist()
+        neutrals = quote.loc[neutral_dates].values.tolist()
+
+        return {
+            'wins': wins,
+            'loses': loses,
+            'neutrals': neutrals
+        }
 
 
 
@@ -755,6 +823,90 @@ class System:
         #display(df)
         return (fig, result)
         #return trades
+
+    def report(self):
+        """
+        시스템 성능을 html파일 형식으로 작성 
+        필요한 그래프는 highchart 모듈 이용
+        """
+        #폴더 생성
+        foldername = self.name + '_' + datetime.today().strftime('%Y%m%d%H%M')
+        savedir = os.path.join('report',foldername) 
+        os.mkdir(savedir)
+
+        data = {}
+
+        #1. 시스템 명세
+        system_info = {
+            'today': datetime.today().strftime('%Y년 %m월 %d일'),
+            'name': self.name,
+            'description': self.description or '',
+            'sector': self.abstract['sectors'] or '',
+            'instruments': ', '.join(self.abstract['instruments']) or '',
+            'start': self.from_date.strftime('%Y-%m-%d'),
+            'end': self.to_date.strftime('%Y-%m-%d') ,
+            'principal': self.principal,
+            'heat_system':self.abstract['heat_system'],
+            'max_system_heat': self.abstract['max_system_heat'],
+            'max_sector_heat':self.abstract['max_sector_heat'],
+            'max_trade_heat': self.abstract['max_trade_heat'],
+            'max_lots': self.abstract['max_lots'],
+            'commission': self.abstract['commission'],
+            'skid': self.abstract['skid'],
+            'metrics': '\n'.join([str(metric) for metric in self.abstract['metrics']]),
+            'entry_rule':{
+                'long': self.abstract['entry_rule']['long'] or '',
+                'short': self.abstract['entry_rule']['short'] or '',
+            },
+            'exit_rule': {
+                'long': self.abstract['exit_rule']['long'] or '',
+                'short': self.abstract['exit_rule']['short'] or '',
+            },
+            'stop_rule': {
+                'long': self.abstract['stop_rule']['long'] or '',
+                'short': self.abstract['stop_rule']['short'] or '',
+            }
+        }
+
+        #2. 성능 데이터 
+        performance = self.performance()
+
+
+        #3. 섹터 결과 
+        sector_result = self.trade_result(level='sector')
+
+        #4. 상품별 결과
+        product_result = self.trade_result(level='name')
+
+        #5. 상품별 상세 기록
+        product_detail = []
+        for symbol in self.symbols:
+
+            product_detail.append({
+                'symbol': symbol,
+                'name': instruments[symbol].name,
+                'chartdata': self.product_detail_result(symbol)
+            })
+
+        
+        
+        #detail_result = self.trade_result(level='symbol')
+        data ={
+            'system_info': system_info,
+            'performance': performance,
+            'sector_result': sector_result,
+            'product_result': product_result,
+            'product_detail': product_detail
+        }
+
+
+        with open(os.path.join(savedir, 'data.txt'), 'w', encoding='utf8') as f:
+            f.write(f"data={data}")
+
+
+
+
+
 
     def create_report(self):
         """ 결과 보고서 작성 """
