@@ -241,8 +241,6 @@ class System:
         tradables = list(mask[~mask].index) #오늘 거래가능 상품 목록
 
 
-        #datesindex = self.metrics.index
-        #yesterday = datesindex[datesindex.get_loc(today) - 1]
         orderbag = self.orderbag.copy()
         
         # 1. 기존 매매(fire) 청산
@@ -409,30 +407,12 @@ class System:
 
         if (position==LONG and type == 'enter') or\
             (position==SHORT and type == 'exit'):
-            #tick_diff = (quote['high'] - quote['open'])/tickunit
-            #skid = round(tick_diff*self.skid)*tickunit
             return quote['open'] + skid
 
         elif (position==LONG and type == 'exit') or\
             (position==SHORT and type == 'enter'):
-            #tick_diff = (quote['high'] - quote['open'])/tickunit
-            #skid = round(tick_diff*self.skid)*tickunit
             return quote['open'] - skid
         
-        #elif position == LONG and type == 'exit':
-        #    tick_diff = (quote['open'] - quote['low'])/tickunit
-        #    skid = round(tick_diff*self.skid)*tickunit
-        #    return quote['open'] - skid
-
-        #elif position == SHORT and type == 'enter':
-        #    tick_diff = (quote['open'] - quote['low'])/tickunit
-        #    skid = round(tick_diff*self.skid)*tickunit
-        #    return quote['open'] - skid
-
-        #elif position == SHORT and type == 'exit':
-        #    tick_diff = (quote['high'] - quote['open'])/tickunit
-        #    skid = round(tick_diff*self.skid)*tickunit
-        #    return quote['open'] + skid
         
     def performance(self):
         """
@@ -490,52 +470,6 @@ class System:
         }
         return performance
     
-
-    def equity_plot(self):
-        
-        equitylog = pd.DataFrame(self.equity.log()).set_index('date')
-        equity = equitylog.groupby(by='date').last()
-        x = equity.index.values
-        capital = equity.capital.values
-        fixed_capital = equity.fixed_capital.values
-        principal = (capital - equity.flame).values #매매직전원금
-        max_capital = equity.max_capital.values
-        #commission = equity.commission.values #누적 수수료
-        p = self.principal #투자원금
-
-        fig, ax = plt.subplots(1,1, figsize=(15, 12))
-        ax.fill_between(x, p, fixed_capital, where=fixed_capital>=p, facecolor='green', alpha=0.4, interpolate=True, label='fixed value=total value - risk')
-        ax.fill_between(x, p, fixed_capital, where=fixed_capital<p, facecolor='red', alpha=0.6, interpolate=True)
-        ax.fill_between(x, capital, max_capital, color='grey', alpha=0.2)
-
-        ax.plot(x, principal, color='black',alpha=0.7, linewidth=1, label='cash')
-        ax.plot(x, capital, color='orange',alpha=0.7, linewidth=1, label='total value = cash + flame - commission')
-        #ax.plot(x, commission, color='grey', alpha=0.7, linestyle='--', label='commission')
-
-        ax.set_xlim([x.min(), x.max()])
-
-        #reference curve
-        rate = 0.1 #annual interest rate
-        refx = (x-x[0])/np.timedelta64(365,'D')
-        refy = p*np.exp(rate*refx)
-        ax.plot(x, refy, color='magenta', linestyle='--', label='reference (10%)')
-
-        #labels
-        ax.legend(loc='upper left', fontsize='large')
-        ax.set_title('Equity Chart', fontsize=17)
-
-        #ax.set_xlabel('Date', fontsize=15)
-        ax.set_ylabel('equity ($)', fontsize=12)
-        ax.yaxis.set_label_position("right")
-        #style
-        ax.grid(linestyle='--')
-        ax.yaxis.set_major_formatter(FuncFormatter(lambda x, p: format(int(x), ',')))
-        ax.yaxis.tick_right()
-        fig.autofmt_xdate()
-                
-        #plt.show()
-        return fig
-
     def summary(self, level=0):
         if level == 0:
             self.equity_plot()
@@ -588,13 +522,10 @@ class System:
                     '위험대비손익': "{:,.1%}",
                     '평균손익': "{:,.0f}",
                     '평균수익': "{:,.0f}",
-                    #'손익표준편차': lambda x: "{:,.0f}".format(x) if x else '',
                     '평균손실': "{:,.0f}",
                     '보유기간': "{:,.0f} 일",
                     #'# trades': "{:.1f}"
                 })
-        
-
         return report
 
     def trade_result(self, level='name'):
@@ -602,8 +533,6 @@ class System:
         tradelog = pd.DataFrame(self.trades.log())
         for lev, table in tradelog.groupby(level):
             
-            #period = table['duration'].mean()
-            #ave_num = len(table)/len(np.unique(table.symbol))
             if level=='name':
                 symbol = table['symbol'].iloc[0]
             elif level=='sector':
@@ -620,9 +549,6 @@ class System:
                 'num_trades': len(table)
             }
             result.append(trade)
-        #df = pd.DataFrame(result)
-        #df.set_index('구분', inplace=True)
-        #df.data.sort_values(by='총손익', ascending=False, inplace=True)
         return result
     
     def sector_data(self, sector):
@@ -717,169 +643,7 @@ class System:
             'lose_profit':lose_profit
         }
 
-
-
-
-
-    def detail_result(self, symbol, start=None, end=None):
-        """
-        상품별 매매 결과 결과를 그래프로 출력함
-        """
-        from functools import reduce
-        from tools.display import MyFormatter
-        from IPython.display import display
-
-
-        #0. 환경 설정. 데이터 가공. 
-        start = self.from_date if start == None else start
-        end = self.to_date if end == None else end
-        symbol = symbol
-        name = instruments[symbol].name
-
-        quotes = instruments.quotes()[symbol].loc[start:end]
-        quotes.dropna(subset=['open','high','low','close'], inplace=True)
-
-        datesindex = quotes.index
-        quotes = quotes.reset_index()
-
-        metrics = self.metrics[symbol].loc[datesindex]
-
-        trades = self.trades.log(symbol=symbol)
-        trades = pd.DataFrame(trades)
-        #, columns=['entrydate','exitdate','position', 'entryprice', 'entrylots','entryrisk','#exits', 'profit','profit_ticks','duration','result'])
-        
-
-        if len(trades) == 0:
-            print(f"No trades have made in given period: {symbol}")
-            return (None, None)
-        
-        else:
-            trades = trades[(trades.entrydate>=start) & (trades.entrydate<=end)]
-            if len(trades) == 0:
-                print(f"No trades have made in given period: {symbol}")
-                return (None, None)
-
-        #1. 차트 환경 설정
-        index_rows = sum([1 for i in metrics.attrs['type'].values() if i == 'index'])
-        xsize = 15
-        ysize = 15*(1 + 0.2*index_rows)
-        linewidth = 1
-
-        fig, (ax) = plt.subplots(3+index_rows, 1, figsize=(xsize, ysize),
-                    gridspec_kw = {'height_ratios':[4,1,1]+[1]*index_rows})
-        
-        #2. 성능차트
-        win_masks = []
-        lose_masks =[]
-
-        for idx, row in trades.iterrows():
-            mask = (quotes['date'] >= row['entrydate']) & (quotes['date'] <= row['exitdate'])
-            if row['result'] == 'WIN':
-                win_masks.append(mask)
-            elif row['result'] == 'LOSE':
-                lose_masks.append(mask)
-
-        win_mask = reduce(np.logical_or, win_masks) if win_masks else quotes['date'] == -1
-        lose_mask = reduce(np.logical_or, lose_masks) if lose_masks else quotes['date'] == -1
-
-        win_dates = quotes[win_mask].index
-        lose_dates = quotes[lose_mask].index
-        neutral_dates = quotes[~win_mask & ~lose_mask].index
-        dates = [win_dates, lose_dates, neutral_dates]
-        colors = ['r', 'b', 'k']
-
-        offset = 0.4
-
-        for date, color in zip(dates, colors):
-            o = quotes.loc[date, 'open'].values
-            h = quotes.loc[date, 'high'].values
-            l = quotes.loc[date, 'low'].values
-            c = quotes.loc[date, 'close'].values
-
-            ax[0].vlines(date, l, h, linewidth=linewidth, color=color)
-            ax[0].hlines(o, date-offset, date, linewidth=linewidth, color=color)
-            ax[0].hlines(c, date, date+offset, linewidth=linewidth, color=color)
-        
-        #3. 지표 그리기
-        metric_type = {
-            'price':[k for k, v in metrics.attrs['type'].items() if v=='price' ],
-            'index':[k for k, v in metrics.attrs['type'].items() if v=='index' ]
-        }
-
-        for metric in metric_type['price']:
-            ax[0].plot(quotes.index, metrics[metric], label=metric)
-
-
-        # formats
-        title = f"Trade Performance: {name} ({symbol})"
-        ax[0].set_title(title, fontsize=20)
-        ax[0].set_ylabel('Price')
-        ax[0].legend(loc=2)
-        myformatter = MyFormatter(datesindex)
-        ax[0].xaxis.set_major_formatter(myformatter)
-
-        #4.Index Chart
-        for axis, name in zip(ax[1:-1], metric_type['index']):
-            axis.set_title(name, loc='left')
-            #axis.set_ylabel(name, fontsize=15)
-            axis.plot(quotes.index, metrics[name])
-            axis.set_xticks([])
-
-
-        #5. Cummulative Profit Chart
-        #cumprofit = trades.profit_ticks.cumsum()
-        cumprofit = trades.profit.cumsum()
-        idx = cumprofit.index
-        ax[-2].plot(cumprofit, color='blue')
-        ax[-2].axhline(y=0, linewidth=1, color='k')
-        ax[-2].set_title('Cummulative Profit', loc='left')
-
-
-        #4. Profit Chart
-        #profit chart
-        num_trades = len(trades)
-        ax[-1].bar(np.arange(1,num_trades+1), np.where(trades.position=='Long', trades.profit, 0), 0.3, color='red', alpha=0.6 )
-        ax[-1].bar(np.arange(1,num_trades+1), np.where(trades.position=='Short', trades.profit, 0), 0.3, color='blue', alpha=0.6 )
-        ax[-1].set_title('Profit', loc='left')
-        ax[-1].axhline(y=0, linewidth=1, color='k')
-        #labels
-
-        #common styles
-        for axis in ax:
-            axis.yaxis.tick_right()
-            axis.set_facecolor('lightgoldenrodyellow')
-            #ax[1].set_xticks(range(1,num_trades+1))
-            axis.grid(linestyle='--')
-
-        result = {
-                #'symbol': symbol,
-                '총손익': round(trades.profit.sum()),
-                '총손익(틱)': round(trades.profit_ticks.sum()),
-                '평균손익(틱)': round(trades.profit_ticks.mean()),
-                #'표준편차(틱)': round(trades.profit_ticks.std()),
-                '위험대비손익': (trades.profit/trades.entryrisk).mean(),
-                '승률': len(trades[trades['result'] == 'WIN'])/len(trades),
-                '보유기간': trades.duration.mean(),
-                '매매회수': len(trades)
-            }
-
-        df = pd.DataFrame(result, index=['결과'])
-        df = df.style.format({
-                    '총손익': "{:,}",
-                    '총손익(틱)': "{:,}",
-                    '평균손익(틱)': "{:,}",
-                    #'표준편차(틱)': "{:,}",
-                    '위험대비손익': "{:.2%}",
-                    '승률': "{:.1%}",
-                    '보유기간': "{:.0f}"
-                })
-        #return df
-        
-        #display(df)
-        return (fig, result)
-        #return trades
-
-    def report(self):
+    def create_report(self):
         """
         시스템 성능을 html파일 형식으로 작성 
         필요한 그래프는 highchart 모듈 이용
@@ -899,7 +663,7 @@ class System:
             'name': self.name,
             'description': self.description or '',
             'sector': self.abstract['sectors'] or '',
-            'instruments': ', '.join(self.abstract['instruments']) or '',
+            'instruments': ', '.join(self.symbols) or '',
             'start': self.from_date.strftime('%Y-%m-%d'),
             'end': self.to_date.strftime('%Y-%m-%d') ,
             'principal': self.principal,
@@ -974,207 +738,10 @@ class System:
             f.write(f"var data={data}")
 
         #템플릿 파일 복사
-        shutil.copy2('report_template.html', savedir)
+        shutil.copy2('report_template.html', os.path.join(savedir,'0_report.html'))
         
         # 전체 거래 내역 생성 및 저장
         pd.DataFrame(self.trades.log()).to_csv(os.path.join(savedir,f'trade_history.csv'))
 
         # 자산 내역 생성 및 저장
         pd.DataFrame(self.equity.log()).to_csv(os.path.join(savedir,f'equity_history.csv'))
-
-
-
-
-
-
-    def create_report(self):
-        """ 결과 보고서 작성 """
-        #폴더 생성
-        foldername = self.name + '_' + datetime.today().strftime('%Y%m%d%H%M')
-        savedir = os.path.join('report',foldername) 
-        os.mkdir(savedir)
-
-        #1. 종합 결과
-        #equity chart 이미지 파일 생성 및 저장 
-        fig = self.equity_plot()
-        fig.tight_layout()
-        fig.savefig(os.path.join(savedir,'equity_chart.svg')) #equity_chart
-        plt.close()
-
-
-        result = self.summary().data.to_dict()
-        for k,v in result.items():
-            result[k] = v['Result']
-
-        #2. 섹터 결과
-        sector_table_rows=""
-        for name, row in self.summary(level=1).data.iterrows():
-            sector_table_rows += f"""\
-            <tr align='center'>\
-            <td>{name}</td>\
-            <td>{row['총손익']:,.0f}</td>\
-            <td>{row['평균손익']:,.0f}</td>\
-            <td>{row['표준편차']:,.0f}</td>\
-            <td>{row['위험대비손익']:.2f}</td>\
-            <td>{row['승률']*100:.2f} %</td>\
-            <td>{row['보유기간']:.0f}</td>\
-            <td>{ row['매매회수']:.0f}</td>\
-            </tr>\
-            """
-        
-        #3. 종목별 결과
-        product_table_rows=""
-        for name, row in self.summary(level=2).data.iterrows():
-            product_table_rows += f"""\
-            <tr align='center'>\
-            <td>{name}</td>\
-            <td>{row['총손익']:,.0f}</td>\
-            <td>{row['평균손익']:,.0f}</td>\
-            <td>{row['표준편차']:,.0f}</td>\
-            <td>{row['위험대비손익']:.2f}</td>\
-            <td>{row['승률']*100:.2f} %</td>\
-            <td>{row['보유기간']:.0f}</td>\
-            <td>{ row['매매회수']:.0f}</td>\
-            </tr>\
-            """
-        
-        #4. 종목 결과 상세
-        product_detail=""
-        for symbol in self.symbols:
-            fig, product_result = self.detail_result(symbol)
-            if not fig:
-                continue
-            fig.tight_layout()
-            fig.savefig(os.path.join(savedir,f'trade_chart_({symbol}).svg')) #trade_chart
-            plt.close()
-            product_detail += f"""
-            <div align="center">
-                    <img src="trade_chart_({symbol}).svg" width="1000px;" style="margin-left:50px; padding:0">
-                    <div align="center">
-                        <table border="1" width="800px" style="border-collapse:collapse" >
-                            <tr align="center">
-                                <th width="14.3%">총손익</th>
-                                <th width="14.3%">총손익(틱)</th>
-                                <th width="14.3%">평균손익(틱)</th>
-                                <th width="14.3%">위험대비손익</th>
-                                <th width="14.3%">승률</th>
-                                <th width="14.3%">보유기간</th>
-                                <th width="14.3%">매매횟수</th>
-                            </tr>
-                            <tr align="center">
-                                <td width="14.3%">{product_result['총손익']:,.0f}</td>
-                                <td width="14.3%">{product_result['총손익(틱)']:,.0f}</td>
-                                <td width="14.3%">{product_result['평균손익(틱)']:,.1f}</td>
-                                <td width="14.3%">{product_result['위험대비손익']:,.0f}</td>
-                                <td width="14.3%">{product_result['승률']:.2f} %</td>
-                                <td width="14.3%">{product_result['보유기간']:.0f}</td>
-                                <td width="14.3%">{product_result['매매회수']:.0f}</td>
-                            </tr>
-                        </table>
-                    </div>
-            </div><br><br><br>
-            """
-            pd.DataFrame(self.trades.log(symbol=symbol)).to_csv(os.path.join(savedir,f'trade_history_({symbol}).csv'))
-
-        #템플릿파일 로드
-        with open('report_template.html', encoding='utf-8') as f:
-            template = f.read()
-
-
-        # 최종 html 파일 작성
-        abstract = self.abstract
-        report = template.format(
-            today = datetime.today().strftime('%Y년 %m월 %d일'),
-            system_name = abstract['name'],
-            system_description = abstract['description'],
-            system_sector=abstract['sectors'],
-            system_instruments=', '.join(abstract['instruments']),
-            system_from_date=self.from_date.strftime('%Y-%m-%d'),
-            system_to_date=self.to_date.strftime('%Y-%m-%d'),
-            system_principal=abstract['principal'],
-            system_heat_system=abstract['heat_system'],
-            system_max_system_heat=abstract['max_system_heat'],
-            system_max_sector_heat=abstract['max_sector_heat'],
-            system_max_trade_heat=abstract['max_trade_heat'],
-            system_max_lots=abstract['max_lots'],
-            system_commission=abstract['commission'],
-            system_skid= abstract['skid'],
-            system_metrics='<br>'.join(['  ,  '.join(i) for i in abstract['metrics']]),
-            system_entry_rule_long=abstract['entry_rule']['long'].replace('<','&lt').replace('>','&gt') if abstract['entry_rule']['long'] else None,
-            system_entry_rule_short=abstract['entry_rule']['short'].replace('<','&lt').replace('>','&gt') if abstract['entry_rule']['short'] else None,
-            system_exit_rule_long=abstract['exit_rule']['long'].replace('<','&lt').replace('>','&gt') if abstract['exit_rule']['long'] else None ,
-            system_exit_rule_short=abstract['exit_rule']['short'].replace('<','&lt').replace('>','&gt') if abstract['exit_rule']['short'] else None,
-            system_stop_rule_long=abstract['stop_rule']['long'],
-            system_stop_rule_short=abstract['stop_rule']['short'],
-            equity_chart='equity_chart.svg',
-            principal=result['투자금'],
-            capital=result['최종자산'],
-            profit=result['총손익'],
-            bliss=result['Bliss'],
-            cagr=result['CAGR'],
-            mdd=result['MDD'],
-            ptr=result['손익비'],
-            winrate=result['승률']*100,
-            rtp=result['위험대비손익'],
-            avg_profit=result['평균손익'],
-            avg_win=result['평균수익'],
-            avg_loss=result['평균손실'],
-            sector_table_rows = sector_table_rows,
-            product_table_rows=product_table_rows,
-            product_detail = product_detail
-        )
-
-        with open(os.path.join(savedir, '00_report.html'), 'w') as f:
-            f.write(report)
-            
-        # 상세 거래내역 생성 및 저장
-        """
-        history = []
-        for trade in self.trades.book:
-            history.append([
-                trade.id,
-                trade.name,
-                trade.entrydate.strftime('%Y-%m-%d'),
-                trade.symbol,
-                trade.sector,
-                trade.position,
-                trade.entryprice,
-                trade.entrylots,
-                trade.entryrisk,
-                trade.entryrisk_ticks,
-                trade.currentprice,
-                trade.stopprice,
-                trade.risk,
-                trade.lots,
-                trade.flame,
-                trade.exits[0]['exitdate'].strftime('%Y-%m-%d') if trade.exits else "",
-                trade.exits[0]['exitprice'] if trade.exits else "",
-                trade.exits[0]['exitlots'] if trade.exits else "",
-                trade.exits[0]['profit'] if trade.exits else "",
-                trade.exits[0]['profit_ticks'] if trade.exits else "",
-                trade.exits[0]['duration'] if trade.exits else "",
-                trade.exits[0]['result'] if trade.exits else "",
-                trade.commission,
-                trade.exittype,
-                trade.on_fire,
-                
-            ])
-        columns = ['id','name','entrydate','symbol','sector','position','entryprice','entrylots',\
-                    'entryrisk','entryrisk_ticks','currentprice','stopprice','risk','lots','flame','exitdate',\
-                    'exitprice','exitlots','profit','profit_ticks','duration','result','commission','exittype','on_fire']
-        df = pd.DataFrame(columns=columns, data=history)
-        """
-        pd.DataFrame(self.trades.log()).to_csv(os.path.join(savedir,f'trade_history.csv'))
-
-        # 자산 내역 생성 및 저장
-        pd.DataFrame(self.equity.log()).to_csv(os.path.join(savedir,f'equity_history.csv'))
-
-
-
-
-       
-   
-
-
-
-        
