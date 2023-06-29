@@ -18,7 +18,7 @@ heat_system: DefaultHeat
 max_system_heat: 0.2 #최대 허용 손실 비율
 max_sector_heat: 0.05 
 max_trade_heat: 0.02 #매매당 최대 허용 손실 비율
-max_lots: 10 #매매당 최대 계약수
+max_lots: 5 #매매당 최대 계약수
 
 #매매환경
 commission: 2.99 #수수료(dollar)
@@ -30,11 +30,12 @@ metrics:
  # - [name, metric, params]
  - [ema50, EMA, window=50]
  - [ema200, EMA, window=200]
+ - [ema20, EMA, window=20]
  - [min20, MIN, window=20]
  - [max20, MAX, window=20]
 
 entry_rule: 
- long:  ema50>ema200 
+ long:  ema50>ema200 & close>ema20
  short: ~
 
 exit_rule: 

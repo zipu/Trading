@@ -201,15 +201,17 @@ class System:
         for symbol in self.symbols:
             condition = rules
             df = quotes[symbol]
-            fields = df.columns.to_list()
+            #fields = df.columns.to_list()
             
             # ex) 조건이 ma5>ma20 인경우
             #     df['ma5']>df['ma20'] 의 pandas 조건식으로 변환
-            for field in fields:
-                condition = re.sub(f"(?<![A-Za-z0-9])({field})(?![A-Za-z0-9])", f"df['{field}']", condition)
+            #for field in fields:
+            #    condition = re.sub(f"(?<![A-Za-z0-9])({field})(?![A-Za-z0-9])", f"df['{field}']", condition)
 
             #self.quotes[symbol,'buy_signal'] = eval(rule)
-            signal = eval(condition)
+            #signal = eval(condition)
+            signal = pd.Series(data=False, index=df.index)
+            signal.loc[df.query(rules).index] = True
             signal.name = (symbol, name)
             signals.append(signal)
         signals = pd.concat(signals, axis=1)
@@ -549,6 +551,10 @@ class System:
                 'num_trades': len(table)
             }
             result.append(trade)
+            result.sort(
+                key = lambda x: x['profit'],
+                reverse = True
+            )
         return result
     
     def sector_data(self, sector):
