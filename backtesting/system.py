@@ -6,11 +6,12 @@
 import os
 from datetime import datetime
 from collections import defaultdict
-import re
+import random
+#import re
 import pandas as pd
 import numpy as np
-from matplotlib.ticker import FuncFormatter
-import matplotlib.pyplot as plt
+#from matplotlib.ticker import FuncFormatter
+#import matplotlib.pyplot as plt
 
 from tools.instruments import instruments
 from tools.quotes import Quotes
@@ -240,8 +241,9 @@ class System:
         quote = self.quotes.loc[today]
         signals = self.signals.loc[today] #오늘자 시그널
         mask = quote.isna().groupby('symbol').all()
-        tradables = list(mask[~mask].index) #오늘 거래가능 상품 목록
-
+        
+        # 오늘 거래 가능 상품 목록. 순서는 랜덤
+        tradables = random.shuffle(list(mask[~mask].index)) 
 
         orderbag = self.orderbag.copy()
         
