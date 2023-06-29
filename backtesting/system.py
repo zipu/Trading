@@ -604,10 +604,14 @@ class System:
             
             #period = table['duration'].mean()
             #ave_num = len(table)/len(np.unique(table.symbol))
-            
+            if level=='name':
+                symbol = table['symbol'].iloc[0]
+            elif level=='sector':
+                symbol = table['sector'].iloc[0] 
             trade = {
                 #'symbol': symbol,
                 'name': lev,#self.pinfo[symbol]['name'],
+                'symbol': symbol,
                 'profit': table.profit.sum()+table.flame.sum(),
                 'avg_profit': table.profit.mean(),
                 'profit_to_risk': 100*(table.profit/table.entryrisk).mean(),
@@ -620,8 +624,21 @@ class System:
         #df.set_index('구분', inplace=True)
         #df.data.sort_values(by='총손익', ascending=False, inplace=True)
         return result
+    
+    def sector_data(self, sector):
+        """
+        섹터별 누적수익을 highchart 로 나타내기 위한 함수
+        """
+        data = []
+        df = pd.DataFrame(self.trades.log(sector=sector))
+        df['cum_profit'] = df['profit'].cumsum()
+        grouped = df.groupby('exitdate').last()
+        grouped['date'] = grouped.index.values.astype('int64')/1000000
+        
+        return grouped[['date','cum_profit']].values.tolist()
 
-    def product_detail_result(self, symbol):
+
+    def product_data(self, symbol):
         """
         상품별 매매 결과를 Highchart 그래프로 그리는 
         html string을 리턴함
@@ -867,6 +884,8 @@ class System:
         시스템 성능을 html파일 형식으로 작성 
         필요한 그래프는 highchart 모듈 이용
         """
+        import shutil
+
         #폴더 생성
         foldername = self.name + '_' + datetime.today().strftime('%Y%m%d%H%M')
         savedir = os.path.join('report',foldername) 
@@ -913,18 +932,31 @@ class System:
         #3. 섹터 결과 
         sector_result = self.trade_result(level='sector')
 
+        #섹터별 상세기록
+        sector_detail = []
+        for sector in self.sectors:
+            sector_detail.append({
+                'sector': sector,
+                'chartdata': self.sector_data(sector)
+            })
+ 
         #4. 상품별 결과
         product_result = self.trade_result(level='name')
 
-        #5. 상품별 상세 기록
-        product_detail = []
+        #상품별 상세 기록
         for symbol in self.symbols:
 
-            product_detail.append({
+            product_detail ={
                 'symbol': symbol,
                 'name': instruments[symbol].name,
-                'chartdata': self.product_detail_result(symbol)
-            })
+                'chartdata': self.product_data(symbol)
+            }
+            #각각을 별도 파일로 저장
+            with open(os.path.join(savedir, f'product_data({symbol}).txt'), 'w', encoding='utf8') as f:
+                f.write(f"var product_data={product_detail}")
+            
+            #종목별 거래 기록 저장
+            pd.DataFrame(self.trades.log(symbol=symbol)).to_csv(os.path.join(savedir,f'trade_history_({symbol}).csv'))
 
         
         
@@ -934,12 +966,21 @@ class System:
             'performance': performance,
             'sector_result': sector_result,
             'product_result': product_result,
-            'product_detail': product_detail
+            'sector_detail': sector_detail
         }
 
-
+        #파일 생성 및 저장
         with open(os.path.join(savedir, 'data.txt'), 'w', encoding='utf8') as f:
-            f.write(f"data={data}")
+            f.write(f"var data={data}")
+
+        #템플릿 파일 복사
+        shutil.copy2('report_template.html', savedir)
+        
+        # 전체 거래 내역 생성 및 저장
+        pd.DataFrame(self.trades.log()).to_csv(os.path.join(savedir,f'trade_history.csv'))
+
+        # 자산 내역 생성 및 저장
+        pd.DataFrame(self.equity.log()).to_csv(os.path.join(savedir,f'equity_history.csv'))
 
 
 

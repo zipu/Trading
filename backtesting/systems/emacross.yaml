@@ -4,8 +4,8 @@ description: 시스템 설명
 
 #거래시장 정보
 sectors: default
-instruments: ['NQ','W']
-from_date: '2018-01-01'
+instruments: ['NQ','W','C','AD','ES','CL']
+from_date: '2010-01-01'
 to_date:  ~ #'204-01-01'
 
 
