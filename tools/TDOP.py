@@ -4,6 +4,7 @@ import numpy as np
 
 #from .tools import rolling_window
 
+
 def get_factors(density, p):
     """
     density table로부터 주요 factor들을 반환
