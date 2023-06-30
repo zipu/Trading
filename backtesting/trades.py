@@ -277,6 +277,8 @@ class TradesBook:
         """
         청산 기록 
         """
+        
+
         profit = fire.add_exit(exitdate, exitprice, exitlots, exittype)
         self.profit += profit
         if not fire.on_fire:

@@ -243,27 +243,34 @@ class System:
         mask = quote.isna().groupby('symbol').all()
         
         # 오늘 거래 가능 상품 목록. 순서는 랜덤
-        tradables = random.shuffle(list(mask[~mask].index)) 
+        tradables = list(mask[~mask].index)
+        random.shuffle(tradables) 
 
-        orderbag = self.orderbag.copy()
-        
         # 1. 기존 매매(fire) 청산
-        if orderbag['exit']:
-            for fire in orderbag['exit']:
+        if self.orderbag['exit']:
+            to_be_removed = []
+            for fire in self.orderbag['exit']:
                 if fire.symbol in tradables:
                     self.exit(fire, quote[fire.symbol], type='EXIT')
-                    self.orderbag['exit'].remove(fire)
+                    to_be_removed.append(fire)
+            
+            for item in to_be_removed:
+                self.orderbag['exit'].remove(item)
 
             #자산 상태 업데이트
             self.equity.update(today, self.trades, self.heat)
 
         
         # 2. 신규 매매 진입
-        if orderbag['enter']:
-            for item in orderbag['enter']:
+        if self.orderbag['enter']:
+            to_be_removed = []
+            for item in self.orderbag['enter']:
                 if item['symbol'] in tradables: 
                     self.enter(item['symbol'], quote[item['symbol']], item['position'])
-                    self.orderbag['enter'].remove(item)
+                    to_be_removed.append(item)
+                    
+            for item in to_be_removed:
+                self.orderbag['enter'].remove(item)
 
             self.equity.update(today, self.trades, self.heat)
 
@@ -457,7 +464,7 @@ class System:
         performance = {
             'capital': self.equity.capital,
             'profit': self.equity.profit,
-            'profit_rate': (self.equity.capital / self.principal),
+            'profit_rate': (self.equity.capital / self.principal -1)*100,
             'bliss': self.equity.cagr/self.equity.mdd if self.equity.mdd > 0 else '',
             'cagr': self.equity.cagr,
             'mdd': self.equity.mdd,
