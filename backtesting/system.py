@@ -53,7 +53,9 @@ class System:
         if abstract['instruments']:
             self.symbols = abstract['instruments'] #상품 코드 목록
         else:
-            self.symbols = quotes.columns.levels[0].to_list()
+            db_symbols = quotes.columns.levels[0].to_list()
+            tradable_symbols = instruments.filter(tradable=True)
+            self.symbols = [ins for ins in tradable_symbols if ins.symbol in db_symbols]
         
         self.instruments = [instruments[symbol] for symbol in self.symbols]
         
