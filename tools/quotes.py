@@ -5,9 +5,12 @@
 
 
 """
-
+import os
 import pandas as pd
 import numpy as np
+import h5py
+
+from tools.constants import DATADIR
 
 from .datatools import norm
 
@@ -21,6 +24,9 @@ class Quotes(pd.DataFrame):
         type: single or multi
         """
         super().__init__(data) 
+
+        if 'symbol' in data.attrs:
+            self.attrs['symbol'] = data.attrs['symbol']
 
         #metric 값들의 형식을 저장 (plotting 용도로 사용)
         self.attrs['metric_types'] = {
@@ -209,6 +215,47 @@ class Quotes(pd.DataFrame):
             ind = []
             for symbol, quote in self.groupby(level=0, axis=1):
                 df = quote[symbol, ref].rolling(window, min_periods=1).max()
+                df.name = (symbol, fieldname)
+                ind.append(df)
+            
+            ind = pd.concat(ind, axis=1)
+            if inplace:
+                self[ind.columns] = ind
+                self.sort_index(axis=1, level=0, sort_remaining=False, inplace=True)
+
+            else:
+                return ind
+    
+
+    def PD(self, percentile, tau=50, inplace=False, fieldname=None):
+        """
+        Price Density
+        return: data, type
+        """
+        fieldname = fieldname if fieldname else f'pd{percentile}'
+        db_path = os.path.join(DATADIR,'price density',f'percentiles_Tau_{tau}.hdf')
+
+        if self.type == 'single':
+            symbol = self.attrs['symbol']
+            file = h5py.File(db_path, 'r')
+            data = file[symbol]['percentiles'][:,percentile]
+            dates = file[symbol]['dates'][:].astype('M8[ns]')
+            file.close()
+            ind = pd.Series(data=data, index=dates)
+            ind.name = fieldname
+            if inplace:
+                self[fieldname] = ind
+            else: 
+                return ind
+
+        if self.type == 'multiple':
+            ind = []
+            for symbol, quote in self.groupby(level=0, axis=1):
+                file = h5py.File(db_path, 'r')
+                data = file[symbol]['percentiles'][:,percentile]
+                dates = file[symbol]['dates'][:].astype('M8[ns]')
+                file.close()
+                df = pd.Series(data=data, index=dates)
                 df.name = (symbol, fieldname)
                 ind.append(df)
             

@@ -47,6 +47,7 @@ class Instrument:
             'srf': self._srf,
             'ebest': self._ebest,
             'kibot': self._kibot,
+            'tradable': self._tradable,
             'exchange': self._exchange,
             'months': self._months,
             'tickunit': self._tickunit,
@@ -97,7 +98,7 @@ class Instrument:
         #    code = self.symbol 
 
         if contract:
-            file = h5py.File(db, 'r')
+            file = h5py.File(SRF_CONTRACTS_DB_PATH, 'r')
             dset = file[self.symbol]
             code = contract
 
@@ -125,6 +126,8 @@ class Instrument:
         df.set_index('date', inplace=True)
         df.columns.names = (['field'])
         df.rename(columns = {'open_interest':'oi'}, inplace = True)
+
+        df.attrs['symbol'] = self.symbol
         
         return Quotes(df)
         #if format == 'numpy':
@@ -348,7 +351,8 @@ class Instruments(dict):
 
 
         if not symbols:
-            symbols = list(file.keys())
+            #symbols = list(file.keys())
+            symbols = [i.symbol for i in self.filter(tradable=True, ebestall=True, srfall=True)]
 
 
         #pandas column name
