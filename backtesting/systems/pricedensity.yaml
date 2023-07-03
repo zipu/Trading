@@ -1,0 +1,51 @@
+#시스템 명
+name: emacross
+description: 시스템 설명
+
+#거래시장 정보
+sectors: default
+instruments: [BO, C, CC, CL, CT, ES, FV, GC, HG, HO,  KC, LC, LN, MD, NG, NK, NQ, O, OJ, PA, PL, RB, RTY, S, SB, SI, SM, TU, TY, US, W]
+from_date: '1999-01-01'
+to_date:  ~ #'204-01-01'
+
+
+# 투자 원금
+principal: 10000000 # 단위(dollar)
+
+
+# 리스크 설정
+heat_system: DefaultHeat
+max_system_heat: 0.3 #최대 허용 손실 비율
+max_sector_heat: 0.05 
+max_trade_heat: 0.02 #매매당 최대 허용 손실 비율
+max_lots: 5 #매매당 최대 계약수
+
+#매매환경
+commission: 2.99 #수수료(dollar)
+skid: 20 # entry price = open + (high-open)*skid for buy order
+allow_pyramiding: False
+
+#지표
+metrics: 
+ # - [name, metric, params]
+ - [pd25, PD, percentile=25]
+ - [pd75, PD, percentile=75]
+ - [pd50, PD, percentile=50]
+
+
+entry_rule: 
+ long:  close>pd75
+ short: close<pd25
+
+exit_rule: 
+ long: close < pd50
+ short: close > pd50
+
+stop_rule: 
+ long: pd50
+ short: pd50
+ 
+
+
+
+

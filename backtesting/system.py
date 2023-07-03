@@ -55,7 +55,7 @@ class System:
         else:
             db_symbols = quotes.columns.levels[0].to_list()
             tradable_symbols = instruments.filter(tradable=True)
-            self.symbols = [ins for ins in tradable_symbols if ins.symbol in db_symbols]
+            self.symbols = [ins.symbol for ins in tradable_symbols if ins.symbol in db_symbols]
         
         self.instruments = [instruments[symbol] for symbol in self.symbols]
         
@@ -328,8 +328,11 @@ class System:
                         'position': SHORT
                     })
 
-            if fire and (signal.get('exit_long') or signal.get('exit_long')):
-                self.orderbag['exit'].append(fire[0])
+            if fire:
+                if fire[0].position == LONG and signal.get('exit_long'):
+                    self.orderbag['exit'].append(fire[0])
+                elif fire[0].position == SHORT and signal.get('exit_short'):
+                    self.orderbag['exit'].append(fire[0])
 
         
     def enter(self, symbol, quote, position):
@@ -363,7 +366,8 @@ class System:
         order['entryrisk_ticks'] = risk_ticks
         
         if risk_ticks <= 0 :
-            raise ValueError(f"리스크가 음수 또는 0일 수 없음: {order}")
+            return
+            #raise ValueError(f"리스크가 음수 또는 0일 수 없음: {order}")
         
         #계약수 결정
         lots = self.heat.calc_lots(symbol, sector, risk_ticks, self.equity)
@@ -666,6 +670,7 @@ class System:
         필요한 그래프는 highchart 모듈 이용
         """
         import shutil
+        import webbrowser
 
         #폴더 생성
         foldername = self.name + '_' + datetime.today().strftime('%Y%m%d%H%M')
@@ -755,10 +760,16 @@ class System:
             f.write(f"var data={data}")
 
         #템플릿 파일 복사
-        shutil.copy2('report_template.html', os.path.join(savedir,'0_report.html'))
+        savepath = os.path.join(savedir,'0_report.html')
+        shutil.copy2('report_template.html', savepath)
         
         # 전체 거래 내역 생성 및 저장
         pd.DataFrame(self.trades.log()).to_csv(os.path.join(savedir,f'trade_history.csv'))
 
         # 자산 내역 생성 및 저장
         pd.DataFrame(self.equity.log()).to_csv(os.path.join(savedir,f'equity_history.csv'))
+
+        #새창에서 열기
+        url = os.path.abspath(savepath)
+        webbrowser.open(url)
+

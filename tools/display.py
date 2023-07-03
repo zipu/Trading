@@ -248,3 +248,65 @@ def view(data, period='day', size=(10,6), colors=['k','k'],\
     fig.autofmt_xdate()
     plt.close()
     return fig
+
+def highchart(items, height=600):
+    """
+    timeseries data를 highchart로 변환하는 함수  
+    basedir/temp 폴더내에 저장
+    input data: data list [data1, data2, ...]
+    data 구조:
+    {
+        'chartdata': pandas dataframe with datetime index,
+        'type': default='line',
+        'yaxis': y-axis name default='1'
+    }
+    
+    """
+    from tools.constants import BASEDIR
+    from datetime import datetime
+    import shutil
+    import webbrowser
+
+
+    
+    foldername = datetime.today().strftime("%Y%m%d%H%M%S")
+    dir = os.path.join(BASEDIR, 'temp', foldername)
+    os.mkdir(dir)
+
+
+    data = []
+    for item in items:
+        series = {}
+        chartdata = item['data'].dropna().copy()
+        if isinstance(chartdata, pd.Series):
+            series['name'] = item['name'] if item.get('name') else chartdata.name 
+            chartdata = chartdata.to_frame()
+        
+        elif isinstance(chartdata, pd.DataFrame):
+            series['name'] = item['name'] if item.get('name') else ''
+
+        chartdata.insert(0, 'date', chartdata.index.astype('int64')/1000000)
+        series['chartdata'] = chartdata.values.tolist()
+
+        series['type'] = item['type'] if item.get('type') else 'line'
+        series['yaxis'] = item['yaxis'] if item.get('yaxis') else '1'
+
+        data.append(series)
+
+
+
+    #파일 생성 및 저장
+    
+    with open(os.path.join(dir, 'data.txt'), 'w', encoding='utf8') as f:
+            f.write(f"var data={data}; const chartHeight = {height}")
+    
+    #템플릿 파일 복사
+    template_path = os.path.join(BASEDIR,'tools','template','highchart.html')
+    savepath = os.path.join(dir,'chart.html')
+    shutil.copy2(template_path, savepath)
+
+    #새창에서 열기
+    url = os.path.abspath(savepath)
+    webbrowser.open(url)
+
+    

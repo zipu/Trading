@@ -6,6 +6,9 @@ import os
 
 dirname = os.path.dirname(__file__)
 
+#기본 폴더
+BASEDIR = os.path.join(os.path.abspath(dirname), '..')
+
 # 데이터가 저장된 폴더 
 DATADIR = os.path.join(os.path.abspath(dirname), '..', 'data')
 

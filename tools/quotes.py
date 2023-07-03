@@ -30,7 +30,7 @@ class Quotes(pd.DataFrame):
 
         #metric 값들의 형식을 저장 (plotting 용도로 사용)
         self.attrs['metric_types'] = {
-            'price': ['EMA','MA','MAX','MIN'],
+            'price': ['EMA','MA','MAX','MIN', 'PD'],
             'index': ['ATR']
         }
 

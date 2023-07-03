@@ -1,0 +1,100 @@
+<html>
+<head>
+    <script src="https://code.highcharts.com/stock/highstock.js"></script>
+    <script src="https://code.highcharts.com/modules/accessibility.js"></script>
+   
+</head>
+<body>
+    <div align="center">
+        <figure class="highcharts-figure" style="width:1000px;">
+            <div id="chart"></div>
+        </figure>
+    </div>
+
+</body>
+
+<!-- 데이터 로드-->
+<script src="data.txt" type="text/javascript"></script>
+<script>
+    document.getElementById("chart").style.height = chartHeight;
+    var chart = Highcharts.stockChart('chart', {
+            chart: {
+                zoomType: 'x',
+                //height: 600,
+                zooming: {
+                    mouseWheel: false
+                }
+            },
+            colors:  ['black','#058DC7', '#50B432', '#ED561B', '#DDDF00', '#24CBE5', '#64E572', '#FF9655', '#FFF263', '#6AF9C4'],
+            legend: {
+                enabled: true
+            },
+            rangeSelector: {
+                    selected: 1,
+                    enabled:false
+            },
+            navigator: { enabled: false	},
+            scrollbar: { enabled: false },
+            plotOptions: {
+                line:{
+                    lineWidth:1,
+                    states:{
+                        hover:{
+                            enabled:false
+                        }
+                    }
+                },
+                series: {
+                    states: {
+                        inactive: { opacity: 1 },
+                    }
+                }
+            },
+            tooltip: {
+                xDateFormat: '%Y-%m-%d',
+                positioner: function() {
+                    return {
+                        x: this.chart.plotLeft,
+                        y: this.chart.plotTop
+                    };
+                },
+                //shared: true,
+                //pointFormat: '{series.name}: <b>{point.y}</b><br/>',
+                valueDecimals: 2,
+                shadow: false,
+                borderWidth: 0,
+                backgroundColor: 'rgba(255,255,255,0.8)'
+            }
+        });
+
+    let yaxis = [];
+    for (item of data){
+       if (!yaxis.includes(item.yaxis)){
+            yaxis.push(item.yaxis);
+       };
+    };
+
+    const height = 100/yaxis.length;
+
+    for (i=0;i<yaxis.length;i++){
+        chart.addAxis({
+                id:yaxis[i],
+                opposite:false,
+                top: (i*height).toString()+'%',
+                height: height.toString()+'%',
+                offset:0,
+            }, false);
+    };
+
+    for (item of data){
+        chart.addSeries({
+            type: item.type,
+            name: item.name,
+            data: item.chartdata,
+            yAxis: item.yaxis
+        }, false)
+    }
+    chart.redraw();
+
+</script>
+</html>
