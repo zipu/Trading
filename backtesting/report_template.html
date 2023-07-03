@@ -609,7 +609,7 @@ function showDetail(symbol){
         });
         product_chart.addSeries({
                     type: 'column',                      
-                    name: 'loses',
+                    name: 'profit',
                     data: win_profit,
                     yAxis: 'profit',
                     color: 'red',
@@ -618,7 +618,7 @@ function showDetail(symbol){
                 }, false);
         product_chart.addSeries({
             type: 'column',                      
-            name: 'wins',
+            name: 'profit',
             data: lose_profit,
             yAxis: 'profit',
             color: 'blue',

@@ -6,7 +6,7 @@
 </head>
 <body>
     <div align="center">
-        <figure class="highcharts-figure" style="width:1000px;">
+        <figure class="highcharts-figure" style="width:800px;">
             <div id="chart"></div>
         </figure>
     </div>
@@ -36,6 +36,13 @@
             navigator: { enabled: false	},
             scrollbar: { enabled: false },
             plotOptions: {
+                candlestick: {
+                    color: 'blue',
+                    lineColor: 'blue',
+                    upColor: 'red',
+                    upLineColor: 'red',
+
+                },
                 line:{
                     lineWidth:1,
                     states:{

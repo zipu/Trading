@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from .factory import ohlc_chart, norm, candle_chart
-from .file_handler import open_file, dataframe
+#from .factory import ohlc_chart, norm, candle_chart
+#from .file_handler import open_file, dataframe
 
 def gathering_trend(filepath, raw_file, window):
     """

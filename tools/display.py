@@ -227,6 +227,7 @@ def view(data, period='day', size=(10,6), colors=['k','k'],\
     elif 'oi' in data.columns:
         oi = 'oi'
     
+    
     oi_chart(oi_axes, data[oi], period=period, colors=colors)
 
     if has_metrics:
@@ -264,16 +265,13 @@ def highchart(items, height=600):
     """
     from tools.constants import BASEDIR
     from datetime import datetime
-    import shutil
-    import webbrowser
-
-
+    #import shutil
+    #import webbrowser
+    from bs4 import BeautifulSoup
+    from IPython.display import IFrame, display
+    import inspect
     
-    foldername = datetime.today().strftime("%Y%m%d%H%M%S")
-    dir = os.path.join(BASEDIR, 'temp', foldername)
-    os.mkdir(dir)
-
-
+    
     data = []
     for item in items:
         series = {}
@@ -293,20 +291,29 @@ def highchart(items, height=600):
 
         data.append(series)
 
-
-
-    #파일 생성 및 저장
-    
-    with open(os.path.join(dir, 'data.txt'), 'w', encoding='utf8') as f:
-            f.write(f"var data={data}; const chartHeight = {height}")
-    
     #템플릿 파일 복사
     template_path = os.path.join(BASEDIR,'tools','template','highchart.html')
-    savepath = os.path.join(dir,'chart.html')
-    shutil.copy2(template_path, savepath)
+    soup = BeautifulSoup(open(template_path, encoding='utf8'), 'html.parser')
+    script = soup.new_tag("script")
+    script.string = f"var data={data}; const chartHeight = {height}"
+    soup.body.append(script)
+   
+    #파일 생성 및 저장
+    filename = datetime.today().strftime("%Y%m%d%H%M%S")+'.html'
+    filepath = os.path.join(BASEDIR, 'temp', filename)
+    with open(filepath, 'w', encoding='utf8') as f:
+            f.write(str(soup))
 
+    
+    #파일 경로 찾기 
+    cnt = inspect.stack()[0].filename.count('..')
+    path = ''.join(['../' for i in range(cnt)]) + f"temp/{filename}"
+    
+    display(IFrame(path, width=900, height=height+100))
+    #return os.path.abspath(filepath)
+    #return data
     #새창에서 열기
-    url = os.path.abspath(savepath)
-    webbrowser.open(url)
+    #url = os.path.abspath(savepath)
+    #webbrowser.open(url)
 
     
