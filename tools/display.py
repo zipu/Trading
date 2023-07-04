@@ -299,7 +299,7 @@ def highchart(items, height=600):
     soup.body.append(script)
    
     #파일 생성 및 저장
-    filename = datetime.today().strftime("%Y%m%d%H%M%S")+'.html'
+    filename = 'temporary_chart.html' #datetime.today().strftime("%Y%m%d%H%M%S")+'.html'
     filepath = os.path.join(BASEDIR, 'temp', filename)
     with open(filepath, 'w', encoding='utf8') as f:
             f.write(str(soup))
