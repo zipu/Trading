@@ -269,13 +269,40 @@ class Instruments(dict):
             for line in csv.DictReader(file):
                 self[line['symbol']] = Instrument(line, contracts.get(line['symbol']))
 
+        self._sectors = {
+            'currency':[],
+            'metal':[],
+            'petroleum':[],
+            'grain':[],
+            'tropical':[],
+            'fiber':[],
+            'interest-rate':[],
+            'meat': [],
+            'equity': [],
+            'index':[]
+        }
+
         
     
     def __repr__(self):
         return "종목 정보 오브젝트"
     
        
-    
+    @property
+    def tradables(self):
+        return [i.symbol for i in self.filter(tradable=True, ebestall=True, srfall=True)]
+
+    def sectors(self, symbols):
+        sectors = {}
+        for symbol in symbols:
+            if not sectors.get(self[symbol].sector):
+                sectors[self[symbol].sector] = []
+            sectors[self[symbol].sector].append(symbol)
+            
+        return sectors
+
+
+
     def get_symbols(self, *args):
         """
         kwargs에 들어있는 field 값을 가지고 있는 모든 종목의 심볼 리스트를 반환

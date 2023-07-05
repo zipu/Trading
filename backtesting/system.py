@@ -51,21 +51,27 @@ class System:
 
         # 설정파일에 거래 상품 리스트가 없으면 db 전체 상품으로 진행
         if abstract['instruments']:
-            self.symbols = abstract['instruments'] #상품 코드 목록
+            symbols = abstract['instruments'] #상품 코드 목록
         else:
             db_symbols = quotes.columns.levels[0].to_list()
             tradable_symbols = instruments.filter(tradable=True)
-            self.symbols = [ins.symbol for ins in tradable_symbols if ins.symbol in db_symbols]
+            symbols = [ins.symbol for ins in tradable_symbols if ins.symbol in db_symbols]
         
-        self.instruments = [instruments[symbol] for symbol in self.symbols]
-        
-        #섹터정보
+        #self.instruments = [instruments[symbol] for symbol in self.symbols]
+        #섹터 및 거래상품 목록
         self.sectors = defaultdict(list)
-        if abstract['sectors'] == 'default':
+        if abstract['sectors']:
+            self.symbols = []
+            for symbol in symbols:
+                if instruments[symbol].sector in abstract['sectors']:
+                    self.sectors[instruments[symbol].sector].append(symbol)
+                    self.symbols.append(symbol)
+        
+        else:
+            self.symbols = symbols
             for symbol in self.symbols:
                 self.sectors[instruments[symbol].sector].append(symbol)
-        
-        
+        self.sectors = dict(self.sectors)
         
 
         #자본금
@@ -692,7 +698,7 @@ class System:
             'today': datetime.today().strftime('%Y년 %m월 %d일'),
             'name': self.name,
             'description': self.description or '',
-            'sector': self.abstract['sectors'] or '',
+            'sectors': self.sectors,
             'instruments': ', '.join(self.symbols) or '',
             'start': self.from_date.strftime('%Y-%m-%d'),
             'end': self.to_date.strftime('%Y-%m-%d') ,
@@ -704,7 +710,7 @@ class System:
             'max_lots': self.abstract['max_lots'],
             'commission': self.abstract['commission'],
             'skid': self.abstract['skid'],
-            'metrics': '\n'.join([str(metric) for metric in self.abstract['metrics']]),
+            'metrics': self.abstract['metrics'],
             'entry_rule':{
                 'long': self.abstract['entry_rule']['long'] or '',
                 'short': self.abstract['entry_rule']['short'] or '',

@@ -1,11 +1,15 @@
 #시스템 명
 name: Trend Follow
-description: 50일 추세추종 전략
+description: |
+  50일 추세추종 전략
+  상승 추세지표가 0.6 이상이면 매수 진입
+  횡보추세 지표가 0.5 이상이면 매수 청산
+  매물대 지표 40이하로 내려가면 매수 스탑청산
 
 #거래시장 정보
 sectors: default
 instruments: ~ #['NQ','W','C','AD','ES','CL']
-from_date: '1999-02-01'
+from_date: '2010-02-01'
 to_date:  ~ #'204-01-01'
 
 
@@ -31,21 +35,20 @@ metrics:
  - [uptrend, TREND, direction='up', period=50]
  - [downtrend, TREND, direction='down', period=50]
  - [sidetrend, TREND, direction='side', period=50]
- - [pd35, PD, percentile=35]
- - [pd65, PD, percentile=95]
+ - [pd40, PD, percentile=40]
 
 
 entry_rule: 
  long:  uptrend>0.6
- short: downtrend>0.6
+ short: ~
 
 exit_rule: 
- long: sidetrend>0.6
- short: sidetrend>0.6
+ long: sidetrend>0.5
+ short: ~
 
 stop_rule: 
- long: pd35
- short: pd65
+ long: pd40
+ short: ~
  
 
 

@@ -4,9 +4,9 @@ description: 시스템 설명
 
 #거래시장 정보
 #quotes_style: bo
-sectors: default
+sectors: ~ #['currency','interest-rate','grain']
 instruments: ['AD','C','W','NQ']
-from_date: '2010-08-01'
+from_date: '2020-08-01'
 to_date: ~ #'2018-05-01'
 
 
@@ -29,24 +29,21 @@ allow_pyramiding: False
 #지표
 metrics: 
  # - [name, metric, params]
- - [ema10, EMA, window=10]
- #- [ma20, MA, window=20]
- - [ema300, EMA, window=300]
+ - [ema10, EMA, period=10]
+ - [ma20, MA, period=20]
  #- [volatility, ATR, window=30]
- - [min50, MIN, window=30]
- - [max300, MAX, window=300]
  #- [ATR, window=100]
 
 entry_rule: 
- long: ema10>ema300 
+ long: ema10>ma20
  short: ~ #ema200>ema20
 
 exit_rule: 
- long: ema10<ema300 
+ long: ema10<ma20 
  short: ~
 
 stop_rule: 
- long: min50
+ long: ma20
  short: ~ #max300
  
 

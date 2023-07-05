@@ -10,86 +10,103 @@
         <h3 id="date"> 테스트 날짜: </h3>
         <div align="center">
             <table border="1px solid black" width="800px" style="border-collapse:collapse">
-                <tr>
+                <tr height="35px">
                     <th width="20%"> 시스템명</th>
                     <td style="padding-left:10px" id="system-name"></td>
                 </tr>
-                <tr>
+                <tr height="35px">
                     <th> 시스템 설명 </th>
                     <td style="padding-left:10px" id="system-description"></td>
                 </tr>
-                <tr>
-                    <th> 섹터 구분 </th>
-                    <td style="padding-left:10px" id="system-sector"></td>
-                </tr>
-                <tr>
+                <tr height="35px">
                     <th> 거래 상품 </th>
-                    <td style="padding-left:10px" id="system-instruments"></td>
+                    <td style="padding:0" >
+                        <table id="system-instruments" style="border-collapse: collapse; border-style:hidden; width: 100%"></table>
+                    </td>
                 </tr>
-                <tr>
-                    <th> 거래시작일 </th>
-                    <td style="padding-left:10px" id="start"> </td>
+                <tr height="35px">
+                    <th> 거래기간 </th>
+                    <td style="padding-left:10px" id="period"> </td>
                 </tr>
-                <tr>
-                    <th> 거래종료일</th>
-                    <td style="padding-left:10px" id="end"></td>
-                </tr>
-                <tr>
+                <tr height="35px">
                     <th> 투자 원금</th>
-                    <td style="padding-left:10px" id="principal"> </td>
+                    <td style="padding-left:10px" id="principal">$ </td>
                 </tr>
-                <tr>
+                <tr height="35px">
                     <th> Heat System </th>
                     <td style="padding-left:10px" id="heat"></td>
                 </tr>
-                <tr>
+                <tr height="35px">
                     <th> Max system heat </th>
                     <td style="padding-left:10px" id="max-system-heat"></td>
                 </tr>
-                <tr>
+                <tr height="35px">
                     <th> Max sector heat </th>
                     <td style="padding-left:10px" id="max-sector-heat"></td>
                 </tr>
-                <tr>
+                <tr height="35px">
                     <th> Max trade heat </th>
                     <td style="padding-left:10px" id="max-trade-heat"></td>
                 </tr>
-                <tr>
+                <tr height="35px">
                     <th> 매매당 최대 계약수 </th>
                     <td style="padding-left:10px" id="max-lots"></td>
                 </tr>
-                <tr>
+                <tr height="35px">
                     <th> 수수료 </th>
                     <td style="padding-left:10px" id="commission"></td>
                 </tr>
-                <tr>
+                <tr height="35px">
                     <th> skid </th>
                     <td style="padding-left:10px" id="skid"></td>
                 </tr>
-                <tr>
-                    <th> 사용지표 </th>
-                    <td style="padding-left:10px;white-space: pre-line;" id="metrics"></td>
+                <tr height="35px">
+                    <th rowspane=2> 사용지표 </th>
+                    <td style="padding:0" >
+                        <table  style="border-collapse: collapse; border-style:hidden; width: 100%">
+                        <tbody id="system-metrics">
+                        </tbody>
+                        </table>
+                    </td>
                 </tr>
                 <tr>
-                    <th rowspan="2"> 진입 시그널 </th>
-                    <td style="padding-left:10px" id="entry-rule-long"> LONG|</td>
+                    <th > 진입 시그널 </th>
+                    <td style="padding:0" >
+                            <table  style="border-collapse: collapse; border-style:hidden; width: 100%">
+                            <tbody id="system-metrics">
+                                <tr height="35px"><th style="border:1px solid black;width:20%;">Long</th>
+                                    <td id="entry-rule-long" style="border:1px solid black;padding:10px;"></td></tr>
+                                <tr height="35px"><th style="border:1px solid black;width:20%;">Short</th>
+                                    <td id="entry-rule-short" style="border:1px solid black;padding:10px;"></td></tr>
+                            </tbody>
+                            </table>
+                    </td>
                 </tr>
                 <tr>
-                    <td style="padding-left:10px" id="entry-rule-short"> SHORT| </td>
+                    <th> 청산 시그널 </th>
+                    <td style="padding:0" >
+                        <table  style="border-collapse: collapse; border-style:hidden; width: 100%">
+                        <tbody id="system-metrics">
+                            <tr height="35px"><th style="border:1px solid black;width:20%;">Long</th>
+                                <td id="exit-rule-long" style="border:1px solid black;padding:10px;"></td></tr>
+                            <tr height="35px"><th style="border:1px solid black;width:20%;">Short</th>
+                                <td id="exit-rule-short" style="border:1px solid black;padding:10px;"></td></tr>
+                        </tbody>
+                        </table>
+                </td>
                 </tr>
                 <tr>
-                    <th rowspan="2"> 청산 시그널 </th>
-                    <td style="padding-left:10px" id="exit-rule-long"> LONG| </td>
-                </tr>
-                <tr>
-                    <td style="padding-left:10px" id="exit-rule-short"> SHORT| </td>
-                </tr>
-                <tr>
-                    <th rowspan="2"> STOP 시그널 </th>
-                    <td style="padding-left:10px" id="stop-rule-long"> LONG| </td>
-                </tr>
-                <tr>
-                    <td style="padding-left:10px" id="stop-rule-short"> SHORT| </td>
+                    <th> STOP 시그널 </th>
+                    <td style="padding:0" >
+                        <table  style="border-collapse: collapse; border-style:hidden; width: 100%">
+                        <tbody id="system-metrics">
+                            <tr height="35px"><th style="border:1px solid black;width:20%;">Long</th>
+                                <td id="stop-rule-long" style="border:1px solid black;padding:10px;"></td></tr>
+                            <tr height="35px"><th style="border:1px solid black;width:20%;">Short</th>
+                                <td id="stop-rule-short" style="border:1px solid black;padding:10px;"></td></tr>
+                        </tbody>
+                        </table>
+                </td>
                 </tr>
             </table><br><br>
         </div>
@@ -133,8 +150,8 @@
                     <td id="winrate"></td>
                     <td id="avg-ptl"></td>
                     <td id="profit-to-risk"></td>
-                    <td id="avg-win"></td>
-                    <td id="avg-lose"></td>
+                    <td id="avg-win">$ </td>
+                    <td id="avg-lose">$ </td>
                     <td id="duration"></td>
                     <td id="num-trades"></td>
                 </tr>
@@ -192,19 +209,35 @@ const system_info = data.system_info
 document.getElementById("date").textContent += system_info.today;
 document.getElementById("system-name").textContent += system_info.name;
 document.getElementById("system-description").textContent += system_info.description;
-document.getElementById("system-sector").textContent += system_info.sector;
-document.getElementById("system-instruments").textContent += system_info.instruments;
-document.getElementById("start").textContent += system_info.start;
-document.getElementById("end").textContent += system_info.end;
-document.getElementById("principal").textContent += system_info.principal;
+//document.getElementById("system-sector").textContent += system_info.sector;
+dom = document.getElementById("system-instruments");
+html = "";
+for (sector in system_info.sectors){
+    html+=`<tr><th style='border:1px solid black;width:25%'>${sector}</th><td style='border:1px solid black;padding-left:10px'>${system_info.sectors[sector]}</td></tr>`;
+};
+dom.innerHTML = html;
+
+
+document.getElementById("period").textContent += system_info.start+' ~ '+system_info.end;
+document.getElementById("principal").textContent += system_info.principal.toLocaleString('en-US');
 document.getElementById("heat").textContent += system_info.heat_system;
 document.getElementById("max-system-heat").textContent += system_info.max_system_heat;
 document.getElementById("max-sector-heat").textContent += system_info.max_sector_heat;
 document.getElementById("max-trade-heat").textContent += system_info.max_trade_heat;
 document.getElementById("max-lots").textContent += system_info.max_lots;
-document.getElementById("commission").textContent += system_info.commission;
-document.getElementById("skid").textContent += system_info.skid;
-document.getElementById("metrics").textContent += system_info.metrics;
+document.getElementById("commission").textContent += '$ '+system_info.commission;
+document.getElementById("skid").textContent += system_info.skid+'틱';
+//document.getElementById("metrics").textContent += system_info.metrics;
+dom = document.getElementById("system-metrics");
+html = "";
+for (metric in system_info.metrics){
+    html+=`<tr align='center'>
+               <td style='border:1px solid black;padding-left:10px'>${system_info.metrics[metric][0]}</td>
+               <td style='border:1px solid black;padding-left:10px'>${system_info.metrics[metric][1]}</td>
+               <td style='border:1px solid black;padding-left:10px'>${system_info.metrics[metric][2]}</td>
+            </tr>`;
+};
+dom.innerHTML += html;
 document.getElementById("entry-rule-long").textContent += system_info.entry_rule.long;
 document.getElementById("entry-rule-short").textContent += system_info.entry_rule.short;
 document.getElementById("exit-rule-long").textContent += system_info.exit_rule.long;
@@ -216,18 +249,18 @@ document.getElementById("stop-rule-short").textContent += system_info.stop_rule.
 <!-- 2. 성능 보고서 -->
 <script>
 const performance = data.performance;
-document.getElementById("capital").textContent += performance.capital.toFixed(0);
-document.getElementById("profit").textContent += performance.profit.toFixed(0);
-document.getElementById("profit-rate").textContent += performance.profit_rate.toFixed(2);
-document.getElementById("bliss").textContent += performance.capital.toFixed(2);
+document.getElementById("capital").textContent += parseInt(performance.capital).toLocaleString('en-US');
+document.getElementById("profit").textContent += parseInt(performance.profit).toLocaleString('en-US');
+document.getElementById("profit-rate").textContent += performance.profit_rate.toFixed(2)+' %';
+document.getElementById("bliss").textContent += performance.bliss.toFixed(2);
 document.getElementById("cagr").textContent += performance.cagr.toFixed(2);
 document.getElementById("mdd").textContent += performance.mdd.toFixed(2)+' %';
-document.getElementById("winrate").textContent += performance.winrate.toFixed(2);
+document.getElementById("winrate").textContent += performance.winrate.toFixed(2)+' %';   
 document.getElementById("avg-ptl").textContent += performance.avg_ptl.toFixed(2);
 document.getElementById("profit-to-risk").textContent += performance.profit_to_risk.toFixed(2);
-document.getElementById("avg-win").textContent += performance.avg_win.toFixed(0);
-document.getElementById("avg-lose").textContent += performance.avg_lose.toFixed(0);
-document.getElementById("duration").textContent += performance.duration.toFixed(0);
+document.getElementById("avg-win").textContent += parseInt(performance.avg_win).toLocaleString('en-US');
+document.getElementById("avg-lose").textContent += parseInt(performance.avg_lose).toLocaleString('en-US');
+document.getElementById("duration").textContent += performance.duration.toFixed(0)+'일';
 document.getElementById("num-trades").textContent += performance.num_trades.toFixed(0);
 
 
