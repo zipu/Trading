@@ -175,12 +175,12 @@ class System:
         df = pd.concat(lists, axis=1)
         df = df.sort_index(axis=1, level=0, sort_remaining=False)
 
-        # plotting시 추가 axes 생성여부를 판단하기 위해 각 metric의 형식을 attribute로 저장
-        metric_types = quotes.attrs['metric_types']
-        numeric_type = {}
-        for metric in self.abstract['metrics']:
-            numeric_type[metric[0]] = [k for k,v in metric_types.items() if metric[1] in v][0]
-        df.attrs['type'] = numeric_type
+        # plotting시 추가 axis 생성여부를 판단하기 위해 각 metric의 형식을 attribute로 저장
+        axes_ref = quotes.attrs['axes']
+        axes = {}
+        for metric in metrics:
+            axes[metric[0]] = [k for k,v in axes_ref.items() if metric[1] in v][0]
+        df.attrs['axes'] = axes
 
         # OHLC 데이터가 없는 거래일에 metric 값은 Averaging 결과로써 존재할 수 있음. 
         # OHLC 데이터 Nan 인 날은 거래를 하지 않기 때문에 시그널도 NaN 값으로 변경 해줌
@@ -188,7 +188,7 @@ class System:
             flag = quotes[symbol][['open','high','low','close']].isna().any(axis=1)
             df.loc[flag, symbol] = np.nan
 
-        df.attrs['name'] = self.name
+        df.attrs['system'] = self.name
         return df
 
 
@@ -202,7 +202,7 @@ class System:
         """
         signals = []
         for symbol in self.symbols:
-            condition = rules
+            #condition = rules
             df = quotes[symbol]
             #fields = df.columns.to_list()
             
@@ -441,7 +441,7 @@ class System:
                     .set_index('date')\
                     .groupby(by='date').last()
         rate = 0.1 #interest rate
-        equity['date'] = equity.index.values.astype('int64')/1000000
+        equity['date'] = equity.index.values.astype('M8[ms]').astype('int64')
         equity['cash'] = equity.capital - equity.flame
         equity['reference'] = equity.principal*np.exp(rate*((equity.index - equity.index[0])/np.timedelta64(365,'D')))
         
@@ -580,8 +580,7 @@ class System:
         df = pd.DataFrame(self.trades.log(sector=sector))
         df['cum_profit'] = df['profit'].cumsum()
         grouped = df.groupby('exitdate').last()
-        grouped['date'] = grouped.index.values.astype('int64')/1000000
-        
+        grouped['date'] = grouped.index.values.astype('M8[ms]').astype('int64')        
         return grouped[['date','cum_profit']].values.tolist()
 
 
@@ -594,7 +593,7 @@ class System:
         
         name = instruments[symbol].name
         quote = self.quotes[symbol][['open','high','low','close']].dropna()
-        quote.insert(0, 'date', quote.index.astype('int64')/1000000)
+        quote.insert(0, 'date', quote.index.values.astype('M8[ms]').astype('int64'))
         trades = pd.DataFrame(self.trades.log(symbol=symbol))
         if len(trades) == 0:
             return {}
@@ -622,31 +621,39 @@ class System:
 
         #2. 지표 데이터
         metrics = self.metrics[symbol].dropna()
-        metrics.insert(0, 'date', metrics.index.astype('int64')/1000000)
+        metrics.insert(0, 'date', metrics.index.values.astype('M8[ms]').astype('int64'))
 
-        metric_type = {
-            'price':[k for k, v in self.metrics.attrs['type'].items() if v=='price' ],
-            'index':[k for k, v in self.metrics.attrs['type'].items() if v=='index' ]
-        }
+        #metric_type = {
+        #    'price':[k for k, v in self.metrics.attrs['type'].items() if v=='price' ],
+        #    'index':[k for k, v in self.metrics.attrs['type'].items() if v=='index' ]
+        #}
+
+        metricdata = []
+        for name, axis in self.metrics.attrs['axes'].items():
+            metricdata.append({
+                'name': name,
+                'axis': axis,
+                'data': metrics[['date', name]].values.tolist()
+            })
 
         #2-1. ohlc 차트와 함께 나타낼 지표
-        metrics_with_ohlc = []
-        for metric in metric_type['price']:
-            metrics_with_ohlc.append({
-                'name': metric,
-                'data': metrics[['date',metric]].values.tolist()
-            })
+        #metrics_with_ohlc = []
+        #for metric in metric_type['price']:
+        #    metrics_with_ohlc.append({
+        #        'name': metric,
+        #        'data': metrics[['date',metric]].values.tolist()
+        #    })
         
         #2-2 별도 axis에 나타낼 지표
-        metrics_separated = []
-        for metric in metric_type['index']:
-            metrics_separated.append({
-                'name': metric,
-                'data': metrics[['date',metric]].values.tolist()
-            })
+        #metrics_separated = []
+        #for metric in metric_type['index']:
+        #    metrics_separated.append({
+        #        'name': metric,
+        #        'data': metrics[['date',metric]].values.tolist()
+        #    })
 
         #3. 누적수익 곡선
-        trades['date'] = trades['exitdate'].values.astype('int64')/1000000
+        trades['date'] = trades['exitdate'].values.astype('M8[ms]').astype('int64')
         trades['cum_profit'] = trades['profit'].cumsum()
         trades.dropna(inplace=True)
         cum_profit = trades[['date','cum_profit']].values.tolist()
@@ -657,8 +664,9 @@ class System:
             'wins': wins,
             'loses': loses,
             'neutrals': neutrals,
-            'metrics_with_ohlc': metrics_with_ohlc,
-            'metrics_separated': metrics_separated,
+            'metrics':metricdata,
+            #'metrics_with_ohlc': metrics_with_ohlc,
+            #'metrics_separated': metrics_separated,
             'cum_profit': cum_profit,
             'win_profit': win_profit,
             'lose_profit':lose_profit

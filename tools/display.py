@@ -283,7 +283,7 @@ def highchart(items, height=600):
         elif isinstance(chartdata, pd.DataFrame):
             series['name'] = item['name'] if item.get('name') else ''
 
-        chartdata.insert(0, 'date', chartdata.index.astype('int64')/1000000)
+        chartdata.insert(0, 'date', chartdata.index.values.astype('M8[ms]').astype('int64'))
         series['chartdata'] = chartdata.values.tolist()
 
         series['type'] = item['type'] if item.get('type') else 'line'

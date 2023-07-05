@@ -236,10 +236,7 @@ const chartdata  =  data.performance.chartdata//JSON.parse(JSON.stringify(perfor
 Highcharts.chart('performance-chart', {
         chart: {
             height: 600,
-            zoomType: 'x',
-            zooming: {
-                    mouseWheel: false
-                }
+            panning: true
         },
         title: {
             text: '',
@@ -256,6 +253,15 @@ Highcharts.chart('performance-chart', {
         },
         legend: {
             enabled: true
+        },
+        rangeSelector: {
+                        selected: 1,
+                        enabled:true,
+                        buttons: [{
+                                        type: 'all',
+                                        text: 'All',
+                                        title: 'View all'
+                                  }],
         },
         tooltip: {
             shared: true,
@@ -353,10 +359,7 @@ const sector_detail  =  data.sector_detail//JSON.parse(JSON.stringify(performanc
 var sector_chart = Highcharts.chart('sector-chart', {
         chart: {
             height: 400,
-            zoomType: 'x',
-            zooming: {
-                    mouseWheel: false
-                }
+            panning: true
         },
         title: {
             text: '',
@@ -373,6 +376,15 @@ var sector_chart = Highcharts.chart('sector-chart', {
         },
         legend: {
             enabled: true
+        },
+        rangeSelector: {
+                        selected: 1,
+                        enabled:true,
+                        buttons: [{
+                                        type: 'all',
+                                        text: 'All',
+                                        title: 'View all'
+                                  }],
         },
         colors: ['#32a852','#9e7116', '#7d197a','#586ba3','#660719','#d6c313'],
     });
@@ -409,6 +421,7 @@ var sector_chart = Highcharts.chart('sector-chart', {
         `
     };
 
+var produc_chart;
 function showDetail(symbol){
     var parent = document.getElementById("product-detail");
     
@@ -435,13 +448,10 @@ function showDetail(symbol){
     script.onload = () => {
 
         let trade_data = product_data.chartdata;
-        var product_chart = Highcharts.stockChart('product-chart', {
+        product_chart = Highcharts.stockChart('product-chart', {
                 chart: {
                     height: 600,
-                    zoomType: 'x',
-                    zooming: {
-                        mouseWheel: false
-                    }
+                    panning: true
                 },
                 title: {
                     text: product_data.name
@@ -452,6 +462,7 @@ function showDetail(symbol){
                 colors: ['#32a852','#9e7116', '#7d197a','#586ba3','#660719','#d6c313'],
                 yAxis: [{
                         id: 'ohlc',
+                        name: 'ohlc',
                         opposite: false,
                         title: {
                             text: 'OHLC',
@@ -462,7 +473,12 @@ function showDetail(symbol){
                 
                 rangeSelector: {
                         selected: 1,
-                        enabled:false
+                        enabled:true,
+                        buttons: [{
+                                        type: 'all',
+                                        text: 'All',
+                                        title: 'View all'
+                                  }],
                 },
                 navigator: { enabled: false	},
                 scrollbar: { enabled: false },
@@ -524,48 +540,35 @@ function showDetail(symbol){
                 }]
             });
 
-        // ohlc 차트와 함께 나타낼 지표 그리기
-        for (metric of trade_data.metrics_with_ohlc){
-            product_chart.addSeries({  
-                type: 'line',                      
-                name: metric.name,
-                data: metric.data,
-                yAxis: 'ohlc',
-                lineWidth: 0.8
-            }, false);
-        };
-        // 별도 axis에 나타낼 지표 그리기
-        let metrics = trade_data.metrics_separated;
+        // 지표 그리기
         let chartheight = product_chart.chartHeight;
         let top = 500; //차트 포지션 용
-        const height = 100;
-        if (metrics){
-            for (i=0; i<metrics.length; i++){
+        const height = 150;
+        for (metric of trade_data.metrics){
+            if (!product_chart.get(metric.axis)){
                 chartheight += height;
-                
-                let metric = metrics[i];
                 product_chart.setSize(undefined, chartheight);
                 product_chart.addAxis({
-                        id:metric.name,
+                        id:metric.axis,
                         opposite:false,
                         title: { 
-                            text: metric.name,
+                            text: metric.axis,
                         },
                         top: top,
                         height: height,
                         offset:0,
                     
                 });
-                product_chart.addSeries({
-                    type: 'line',                      
-                    name: metric.name,
-                    data: metric.data,
-                    yAxis: metric.name,
-                    lineWidth: 1.2
-                }, false);
                 top += height;
             };
+            product_chart.addSeries({  
+                name: metric.name,
+                data: metric.data,
+                yAxis: metric.axis,
+                lineWidth: 1
+            }, false);
         };
+        
         //누적수익 차트 그리기
         let cum_profit = trade_data.cum_profit;
         chartheight += height;

@@ -19,19 +19,22 @@
     document.getElementById("chart").style.height = chartHeight;
     var chart = Highcharts.stockChart('chart', {
             chart: {
-                zoomType: 'x',
-                //height: 600,
-                zooming: {
-                    mouseWheel: false
-                }
+                panning: true,
+                panKey: "shift",
+                zoomType: 'x'
             },
             colors:  ['black','#058DC7', '#50B432', '#ED561B', '#DDDF00', '#24CBE5', '#64E572', '#FF9655', '#FFF263', '#6AF9C4'],
             legend: {
                 enabled: true
             },
             rangeSelector: {
-                    selected: 1,
-                    enabled:false
+                        selected: 1,
+                        enabled:true,
+                        buttons: [{
+                                        type: 'all',
+                                        text: 'All',
+                                        title: 'View all'
+                                  }],
             },
             navigator: { enabled: false	},
             scrollbar: { enabled: false },
@@ -45,11 +48,6 @@
                 },
                 line:{
                     lineWidth:1,
-                    states:{
-                        hover:{
-                            enabled:false
-                        }
-                    }
                 },
                 series: {
                     states: {
