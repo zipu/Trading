@@ -69,7 +69,8 @@ class Quotes(pd.DataFrame):
             ma.name = fieldname
             
             if inplace:
-                self[fieldname] = ma
+                return Quotes(self.join(ma, how='left'))
+                #self[fieldname] = ma
             else: 
                 return ma
 
@@ -82,8 +83,9 @@ class Quotes(pd.DataFrame):
             
             ma = pd.concat(ma, axis=1)
             if inplace:
-                self[ma.columns] = ma
-                self.sort_index(axis=1, level=0, sort_remaining=False, inplace=True)
+                #self[ma.columns] = ma
+                #self.sort_index(axis=1, level=0, sort_remaining=False, inplace=True)
+                return Quotes(self.join(ma, how='left').sort_index(axis=1, level=0, sort_remaining=False))
             else:
                 return ma
 
@@ -102,7 +104,8 @@ class Quotes(pd.DataFrame):
             ema = self[ref].ewm(span=period).mean()
             ema.name = fieldname
             if inplace:
-                self[fieldname] = ema
+                return Quotes(self.join(ema, how='left'))
+                #self[fieldname] = ema
             else: 
                 return ema
 
@@ -115,9 +118,9 @@ class Quotes(pd.DataFrame):
             
             ema = pd.concat(ema, axis=1)
             if inplace:
-                self[ema.columns] = ema
-                self.sort_index(axis=1, level=0, sort_remaining=False, inplace=True)
-
+                #self[ema.columns] = ema
+                #self.sort_index(axis=1, level=0, sort_remaining=False, inplace=True)
+                return Quotes(self.join(ema, how='left').sort_index(axis=1, level=0, sort_remaining=False))
             else:
                 return ema
 
@@ -142,7 +145,7 @@ class Quotes(pd.DataFrame):
             #atr = norm(atr)
             atr.name = fieldname
             if inplace:
-                self[fieldname] = atr
+                return Quotes(self.join(atr, how='left'))
             else:
                 return atr
 
@@ -161,8 +164,9 @@ class Quotes(pd.DataFrame):
             atrs = pd.concat(atrs, axis=1)
 
             if inplace:
-                self[atrs.columns] = atrs
-                self.sort_index(axis=1, level=0, sort_remaining=False, inplace=True)
+                #self[atrs.columns] = atrs
+                #self.sort_index(axis=1, level=0, sort_remaining=False, inplace=True)
+                return Quotes(self.join(atrs, how='left').sort_index(axis=1, level=0, sort_remaining=False))
 
             else:
                 return atrs
@@ -178,7 +182,8 @@ class Quotes(pd.DataFrame):
             ind = self[ref].rolling(period, min_periods=1).min()
             ind.name = fieldname
             if inplace:
-                self[fieldname] = ind
+                #self[fieldname] = ind
+                return Quotes(self.join(ind, how='left'))
             else: 
                 return ind
 
@@ -191,8 +196,9 @@ class Quotes(pd.DataFrame):
             
             ind = pd.concat(ind, axis=1)
             if inplace:
-                self[ind.columns] = ind
-                self.sort_index(axis=1, level=0, sort_remaining=False, inplace=True)
+                #self[ind.columns] = ind
+                #self.sort_index(axis=1, level=0, sort_remaining=False, inplace=True)
+                return Quotes(self.join(ind, how='left').sort_index(axis=1, level=0, sort_remaining=False))
 
             else:
                 return ind
@@ -208,7 +214,7 @@ class Quotes(pd.DataFrame):
             ind = self[ref].rolling(period, min_periods=1).max()
             ind.name = fieldname
             if inplace:
-                self[fieldname] = ind
+                return Quotes(self.join(ind, how='left'))
             else: 
                 return ind
 
@@ -221,8 +227,9 @@ class Quotes(pd.DataFrame):
             
             ind = pd.concat(ind, axis=1)
             if inplace:
-                self[ind.columns] = ind
-                self.sort_index(axis=1, level=0, sort_remaining=False, inplace=True)
+                #self[ind.columns] = ind
+                #self.sort_index(axis=1, level=0, sort_remaining=False, inplace=True)
+                return Quotes(self.join(ind, how='left').sort_index(axis=1, level=0, sort_remaining=False))
 
             else:
                 return ind
@@ -245,7 +252,8 @@ class Quotes(pd.DataFrame):
             ind = pd.Series(data=data, index=dates)
             ind.name = fieldname
             if inplace:
-                self[fieldname] = ind
+                #self[fieldname] = ind
+                return Quotes(self.join(ind, how='left'))
             else: 
                 return ind
 
@@ -263,8 +271,9 @@ class Quotes(pd.DataFrame):
             
             ind = pd.concat(ind, axis=1)
             if inplace:
-                self[ind.columns] = ind
-                self.sort_index(axis=1, level=0, sort_remaining=False, inplace=True)
+                #self[ind.columns] = ind
+                #self.sort_index(axis=1, level=0, sort_remaining=False, inplace=True)
+                return Quotes(self.join(ind, how='left').sort_index(axis=1, level=0, sort_remaining=False))
 
             else:
                 return ind
@@ -288,7 +297,8 @@ class Quotes(pd.DataFrame):
             ind = pd.Series(data=data, index=dates)
             ind.name = fieldname
             if inplace:
-                self[fieldname] = ind
+                #self[fieldname] = ind
+                return Quotes(self.join(ind, how='left'))
             else: 
                 return ind
             
@@ -306,8 +316,9 @@ class Quotes(pd.DataFrame):
             
             ind = pd.concat(ind, axis=1)
             if inplace:
-                self[ind.columns] = ind
-                self.sort_index(axis=1, level=0, sort_remaining=False, inplace=True)
+                #self[ind.columns] = ind
+                return Quotes(self.join(ind, how='left').sort_index(axis=1, level=0, sort_remaining=False))
+                #self.sort_index(axis=1, level=0, sort_remaining=False, inplace=True)
 
             else:
                 return ind
