@@ -452,8 +452,14 @@ class System:
         equity['reference'] = equity.principal*np.exp(rate*((equity.index - equity.index[0])/np.timedelta64(365,'D')))
         
         total_value = equity[['date','capital']].round().values.tolist()
-        defined_value_p = equity[equity['fixed_capital']>=equity.principal][['date','fixed_capital']].round().values.tolist()
-        defined_value_n = equity[equity['fixed_capital']<equity.principal][['date','fixed_capital']].round().values.tolist()
+        df = equity[['date','fixed_capital']].copy()
+        df.loc[df['fixed_capital']<equity.principal,'fixed_capital']=equity.principal
+        defined_value_p = df.round().values.tolist()
+        #equity[equity['fixed_capital']>=equity.principal][['date','fixed_capital']].round().values.tolist()
+        
+        df = equity[['date','fixed_capital']].copy()
+        df.loc[df['fixed_capital']>=equity.principal,'fixed_capital']=equity.principal
+        defined_value_n = df.round().values.tolist()
         max_value = equity[['date','max_capital']].round().values.tolist()
         cash = equity[['date','cash']].round().values.tolist()
         reference = equity[['date','reference']].values.tolist()
@@ -475,7 +481,7 @@ class System:
 
         performance = {
             'capital': self.equity.capital,
-            'profit': self.equity.profit,
+            'profit': self.equity.capital - self.equity.principal,
             'profit_rate': (self.equity.capital / self.principal -1)*100,
             'bliss': self.equity.cagr/self.equity.mdd if self.equity.mdd > 0 else '',
             'cagr': self.equity.cagr,
@@ -686,6 +692,8 @@ class System:
         import shutil
         import webbrowser
 
+        import inspect
+
         #폴더 생성
         foldername = self.name + '_' + datetime.today().strftime('%Y%m%d%H%M')
         savedir = os.path.join('report',foldername) 
@@ -774,8 +782,10 @@ class System:
             f.write(f"var data={data}")
 
         #템플릿 파일 복사
+        template_file = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), 'report_template.html')
         savepath = os.path.join(savedir,'0_report.html')
-        shutil.copy2('report_template.html', savepath)
+        shutil.copy2(template_file, savepath)
         
         # 전체 거래 내역 생성 및 저장
         pd.DataFrame(self.trades.log()).to_csv(os.path.join(savedir,f'trade_history.csv'))

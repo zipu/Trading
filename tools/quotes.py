@@ -247,7 +247,7 @@ class Quotes(pd.DataFrame):
             symbol = self.attrs['symbol']
             file = h5py.File(db_path, 'r')
             data = file[symbol]['percentiles'][:,percentile]
-            dates = file[symbol]['dates'][:].astype('M8[ns]')
+            dates = file[symbol]['dates'][:].astype('M8[s]')
             file.close()
             ind = pd.Series(data=data, index=dates)
             ind.name = fieldname
@@ -263,7 +263,7 @@ class Quotes(pd.DataFrame):
             for symbol in symbols:
                 file = h5py.File(db_path, 'r')
                 data = file[symbol]['percentiles'][:,percentile]
-                dates = file[symbol]['dates'][:].astype('M8[ns]')
+                dates = file[symbol]['dates'][:].astype('M8[s]')
                 file.close()
                 df = pd.Series(data=data, index=dates)
                 df.name = (symbol, fieldname)
@@ -278,12 +278,28 @@ class Quotes(pd.DataFrame):
             else:
                 return ind
             
-    def TREND(self, direction, period, inplace=False, fieldname=None):
+    def TREND(self, period, direction, threshold, inplace=False, fieldname=None):
         """
         N-days Trend Index
         direction: 'down' or 'side' or 'up'
         period: integer , only 50 now
         """
+        def calc_trend(data):
+            #연속지속일수 계산
+            # threshold 값보다 크거나 같으면 1(추세) 작으면 0(비추세)
+            data[data < threshold] = 0
+            data[data >= threshold] = 1
+            data = data.astype('int')
+
+            # 추세가 바뀌는 인덱스 찾기
+            diff=np.diff(data)
+            idx=np.where( (diff==1) | (diff==-1))[0]+1 
+
+            # 추세 그룹으로 나눔
+            groups = np.split(data, idx)
+            # 각추세마다 지속일수를 계산하고 다시 합침
+            return np.concatenate([group.cumsum() for group in groups])
+
         fieldname = fieldname if fieldname else f'trend{direction}{period}'
         db_path = os.path.join(DATADIR,'trend index','trend_index.hdf')
         tidx = ['','down','side','up'].index(direction)
@@ -294,7 +310,9 @@ class Quotes(pd.DataFrame):
             data = file[symbol][f"trend{period}"][:, tidx]
             dates = file[symbol][f"trend{period}"][:, 0].astype('M8[s]')
             file.close()
-            ind = pd.Series(data=data, index=dates)
+
+           
+            ind = pd.Series(data=calc_trend(data), index=dates)
             ind.name = fieldname
             if inplace:
                 #self[fieldname] = ind
@@ -310,7 +328,7 @@ class Quotes(pd.DataFrame):
                 data = file[symbol][f"trend{period}"][:, tidx]
                 dates = file[symbol][f"trend{period}"][:, 0].astype('M8[s]')
                 file.close()
-                df = pd.Series(data=data, index=dates)
+                df = pd.Series(data=calc_trend(data), index=dates)
                 df.name = (symbol, fieldname)
                 ind.append(df)
             
