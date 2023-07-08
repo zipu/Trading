@@ -4,22 +4,22 @@ description: 시스템 설명
 
 #거래시장 정보
 #quotes_style: bo
-sectors: ['currency','interest-rate','grain']
-instruments: #['AD','C','W','NQ']
-from_date: '2019-08-01'
+sectors: ~ #['currency','interest-rate','grain']
+instruments: ~  #['AD','C','W','NQ']
+from_date: '1990-01-01'
 to_date: ~ #'2018-05-01'
 
 
 # 투자 원금
-principal: 1000000 # 단위(dollar)
+principal: 100000 # 단위(dollar)
 
 
 # 리스크 설정
 heat_system: DefaultHeat
 max_system_heat: 0.3 #최대 허용 손실 비율
 max_sector_heat: 0.3 
-max_trade_heat: 0.01 #매매당 최대 허용 손실 비율
-max_lots: 3 #상품당 최대 계약수
+max_trade_heat: 0.3 #매매당 최대 허용 손실 비율
+max_lots: 1 #상품당 최대 계약수
 
 #매매환경
 commission: 5.98 #왕복수수료(dollar)
@@ -29,21 +29,21 @@ allow_pyramiding: False
 #지표
 metrics: 
  # - [name, metric, params]
- - [ema10, EMA, period=10]
- - [ma20, MA, period=20]
+ - [trendup, TREND, period=50, direction='up', threshold=0.7]
+ - [min50, MIN, period=50]
  #- [volatility, ATR, window=30]
  #- [ATR, window=100]
 
 entry_rule: 
- long: ema10>ma20
+ long: trendup>3
  short: ~ #ema200>ema20
 
 exit_rule: 
- long: ema10<ma20 
+ long: low<min50
  short: ~
 
 stop_rule: 
- long: ma20
+ long: min50
  short: ~ #max300
  
 

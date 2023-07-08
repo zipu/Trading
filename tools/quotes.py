@@ -6,6 +6,7 @@
 
 """
 import os
+from itertools import groupby
 import pandas as pd
 import numpy as np
 import h5py
@@ -291,14 +292,10 @@ class Quotes(pd.DataFrame):
             data[data >= threshold] = 1
             data = data.astype('int')
 
-            # 추세가 바뀌는 인덱스 찾기
-            diff=np.diff(data)
-            idx=np.where( (diff==1) | (diff==-1))[0]+1 
+            #연속된 0들과 1들 부분으로 분할하고 cumsum을 구해서 다시 합침
+            split_by_consecutive = [np.array(list(v)).cumsum() for k,v in groupby(data)]
 
-            # 추세 그룹으로 나눔
-            groups = np.split(data, idx)
-            # 각추세마다 지속일수를 계산하고 다시 합침
-            return np.concatenate([group.cumsum() for group in groups])
+            return np.concatenate(split_by_consecutive)
 
         fieldname = fieldname if fieldname else f'trend{direction}{period}'
         db_path = os.path.join(DATADIR,'trend index','trend_index.hdf')

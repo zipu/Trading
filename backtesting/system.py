@@ -557,7 +557,7 @@ class System:
             'mdd': self.equity.mdd,
             'longest_dd': max(dd_duration),
             #손익비
-            'avg_ptl': win_profit/lose_profit if lose_trades else 'inf', 
+            'avg_ptl': -1*win_profit/lose_profit if lose_trades else 'inf', 
             'avg_entryrisk_rate': entryrisk_rate/cnt if cnt else '',
             'profit_to_risk': ptr/cnt if cnt else '',
             'winrate': len(win_trades)/cnt if cnt else 0,
@@ -677,8 +677,9 @@ class System:
         """
         섹터별 누적수익을 highchart 로 나타내기 위한 함수
         """
-        data = []
         df = pd.DataFrame(self.trades.log(sector=sector))
+        if len(df) == 0:
+            return []
         df['cum_profit'] = df['profit'].cumsum()
         grouped = df.groupby('exitdate').last()
         grouped['date'] = grouped.index.values.astype('M8[ms]').astype('int64')        
