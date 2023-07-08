@@ -2,7 +2,29 @@
 <head>
     <script src="https://code.highcharts.com/stock/highstock.js"></script>
     <script src="https://code.highcharts.com/modules/accessibility.js"></script>
-   
+    <style>
+        tr {
+            height: 30px;
+        }
+        th {
+            background-color: #f4fade;
+            text-align:center;
+        }
+
+        td {
+            text-align:left;
+        }
+
+        .separator {
+            border-top: hidden;
+            border-bottom: hidden;
+        }
+
+        .result {
+            text-align: right;
+            padding-right: 5px;
+        }
+    </style>
 </head>
 <body>
     <div align="center">
@@ -116,47 +138,129 @@
         <figure class="highcharts-figure" style="width:1000px;">
             <div id="performance-chart"></div>
         </figure>
-        <div align="center">
-            <table border="1" width="900px" style="border-collapse:collapse" >
-                <tr align="center">
-                    <th width="16.6%">최종자산</th>
-                    <th width="16.6%">총손익</th>
-                    <th width="16.6%">수익률</th>
-                    <th width="16.6%">Bliss</th>
-                    <th width="16.6%">CAGR</th>
-                    <th width="16.6%">MDD</th>
+        <div align="center" width="900px">
+            <table  width="900px" style="font-weight:bold;collapse;border-bottom: 2px solid darkgrey;" >
+                <tr height="40px;">
+                    <th colspan="2">매매종합</th>
+                    <td class="separator"></td>
+                    <th></th>
+                    <th style="text-align: right;">수익매매</th>
+                    <th style="text-align: right;">손실매매</th>
                 </tr>
-                <tr align="center">
-                    <td id="capital">$ </td>
-                    <td id="profit">$ </td>
-                    <td id="profit-rate"></td>
-                    <td id="bliss"></td>
-                    <td id="cagr"></td>
-                    <td id="mdd"></td>
+                <tr>
+                    <td width="20%">최종자산</td>
+                    <td class="result" width="20%" id="capital"></td>
+                    <td class="separator"></td>
+                    <td width="20%">누적수익</td>
+                    <td class="result" width="18%" id="win-profit"></td>
+                    <td class="result" width="18%" id="lose-profit"></td>
+                </tr>
+                <tr>
+                    <td>누적수익</td>
+                    <td class="result" id="profit"></td>
+                    <td class="separator"></td>
+                    <td>평균 수익</td>
+                    <td class="result" id="avg-win-profit"></td>
+                    <td class="result" id="avg-lose-profit"></td>
+                </tr>
+                <tr>
+                    <td>최종 수익률</td>
+                    <td class="result" id="profit-rate"></td>
+                    <td class="separator"></td>
+                    <td>평균 수익률</td>
+                    <td class="result" id="avg-win-profit-rate"></td>
+                    <td class="result" id="avg-lose-profit-rate"></td>
+                </tr>
+                <tr>
+                    <td>평균 수익률</td>
+                    <td class="result" id="avg-profit-rate"></td>
+                    <td class="separator"></td>
+                    <td>최대 수익/손실</td>
+                    <td class="result" id="max-win-profit"></td>
+                    <td class="result" id="max-lose-profit"></td>
+                </tr>
+                <tr>
+                    <td>CAGR</td>
+                    <td class="result" id="cagr"></td>
+                    <td class="separator"></td>
+                    <td>최대 수익률/손실률</td>
+                    <td class="result" id="max-win-profit-rate"></td>
+                    <td class="result" id="max-lose-profit-rate"></td>
+                </tr>
+                <tr>
+                    <td>MDD</td>
+                    <td class="result" id="mdd"></td>
+                    <td class="separator"></td>
+                    <td>최장 연승/연패</td>
+                    <td class="result" id="max-win-streak"></td>
+                    <td class="result" id="max-lose-streak"></td>
+                </tr>
+                <tr>
+                    <td>Longest DD</td>
+                    <td class="result" id="longest-dd"></td>
+                    <td class="separator"></td>
+                    <td>평균 보유기간</td>
+                    <td class="result" id="avg-win-duration"></td>
+                    <td class="result" id="avg-lose-duration"></td>
+                </tr>
+                <tr>
+                    <td>승률</td>
+                    <td class="result" id="winrate"></td>
+                    <td class="separator"></td>
+                    <td>최장 보유기간</td>
+                    <td class="result" id="max-win-duration"></td>
+                    <td class="result" id="max-lose-duration"></td>
+                </tr>
+                <tr>
+                    <td>손익비</td>
+                    <td class="result" id="avg-ptl"></td>
+                    <td class="separator"></td>
+                    <td>매매수</td>
+                    <td class="result" id="num-win-trades"></td>
+                    <td class="result" id="num-lose-trades"></td>
+                </tr>
+                <tr>
+                    <td>Avg. Entry Risk</td>
+                    <td class="result" id="avg-entryrisk-rate"></td>
+                    <td class="separator"></td>
+                    <td></td>
+                    <td class="result"></td>
+                    <td class="result"></td>
+                </tr>
+                <tr>
+                    <td> Profit per E. Risk</td>
+                    <td class="result" id="profit-per-risk"></td>
+                    <td class="separator"></td>
+                    <td class="result"></td>
+                    <td class="result"></td>
+                    <td class="result"></td>
+                </tr>
+                <tr>
+                    <td>평균 보유기간</td>
+                    <td class="result" id="avg_duration"></td>
+                    <td class="separator"></td>
+                    <td></td>
+                    <td class="result"></td>
+                    <td class="result"></td>
+                </tr>
+                <tr>
+                    <td>총 매매수</td>
+                    <td class="result" id="num-trades"></td>
+                    <td class="separator"></td>
+                    <td></td>
+                    <td class="result"></td>
+                    <td class="result"></td>
+                </tr>
+                <tr>
+                    <td>누적수수료</td>
+                    <td class="result" id="cum-commission"></td>
+                    <td class="separator"></td>
+                    <td></td>
+                    <td class="result"></td>
+                    <td class="result"></td>
                 </tr>
             </table>
-            <br>
-            <table border="1" width="900px" style="border-collapse:collapse">
-                <tr align="center">
-                    <th width="14.3%">승률</th>
-                    <th width="14.3%">손익비</th>
-                    <th width="14.3%">위험대비손익</th>
-                    <th width="14.3%">수익평균</th>
-                    <th width="14.3%">손실평균</th>
-                    <th width="14.3%">보유기간</th>
-                    <th width="14.3%">매매횟수</th>
-                </tr>
-                <tr align="center">
-                    <td id="winrate"></td>
-                    <td id="avg-ptl"></td>
-                    <td id="profit-to-risk"></td>
-                    <td id="avg-win">$ </td>
-                    <td id="avg-lose">$ </td>
-                    <td id="duration"></td>
-                    <td id="num-trades"></td>
-                </tr>
-            </table>
-        </div>
+
     </div>
     <div align="center" style="margin-top:100px">
         <h2> 2. 섹터별 결과 </h2>
@@ -234,7 +338,7 @@ for (metric in system_info.metrics){
     html+=`<tr align='center'>
                <td style='border:1px solid black;padding-left:10px'>${system_info.metrics[metric][0]}</td>
                <td style='border:1px solid black;padding-left:10px'>${system_info.metrics[metric][1]}</td>
-               <td style='border:1px solid black;padding-left:10px'>${system_info.metrics[metric][2]}</td>
+               <td style='border:1px solid black;padding-left:10px'>${String(system_info.metrics[metric].slice(2))}</td>
             </tr>`;
 };
 dom.innerHTML += html;
@@ -249,20 +353,44 @@ document.getElementById("stop-rule-short").textContent += system_info.stop_rule.
 <!-- 2. 성능 보고서 -->
 <script>
 const performance = data.performance;
-document.getElementById("capital").textContent += parseInt(performance.capital).toLocaleString('en-US');
-document.getElementById("profit").textContent += parseInt(performance.profit).toLocaleString('en-US');
+document.getElementById("capital").textContent += parseInt(performance.capital).toLocaleString('en-US') + ' $';
+document.getElementById("profit").textContent += parseInt(performance.profit).toLocaleString('en-US')+ ' $';
 document.getElementById("profit-rate").textContent += performance.profit_rate.toFixed(2)+' %';
-document.getElementById("bliss").textContent += performance.bliss.toFixed(2);
-document.getElementById("cagr").textContent += performance.cagr.toFixed(2);
+document.getElementById("avg-profit-rate").textContent += performance.avg_profit_rate.toFixed(2)+' %';
+document.getElementById("cagr").textContent += (performance.cagr*100).toFixed(2)+' %';
 document.getElementById("mdd").textContent += performance.mdd.toFixed(2)+' %';
-document.getElementById("winrate").textContent += performance.winrate.toFixed(2)+' %';   
+document.getElementById("longest-dd").textContent += performance.longest_dd+' 일';
+document.getElementById("winrate").textContent += (performance.winrate*100).toFixed(2)+' %';   
 document.getElementById("avg-ptl").textContent += performance.avg_ptl.toFixed(2);
-document.getElementById("profit-to-risk").textContent += performance.profit_to_risk.toFixed(2);
-document.getElementById("avg-win").textContent += parseInt(performance.avg_win).toLocaleString('en-US');
-document.getElementById("avg-lose").textContent += parseInt(performance.avg_lose).toLocaleString('en-US');
-document.getElementById("duration").textContent += performance.duration.toFixed(0)+'일';
+document.getElementById("avg-entryrisk-rate").textContent += (performance.avg_entryrisk_rate*100).toFixed(2)+' %';
+document.getElementById("profit-per-risk").textContent += performance.profit_to_risk.toFixed(2);
+document.getElementById("avg_duration").textContent += performance.avg_duration.toFixed(0)+' 일';
 document.getElementById("num-trades").textContent += performance.num_trades.toFixed(0);
+document.getElementById("cum-commission").textContent += parseInt(performance.commission).toLocaleString('en-US')+ ' $';
 
+document.getElementById("win-profit").textContent += parseInt(performance.win_profit).toLocaleString('en-US')+ ' $';
+document.getElementById("lose-profit").textContent += parseInt(performance.lose_profit).toLocaleString('en-US')+' $';
+document.getElementById("avg-win-profit").textContent += parseInt(performance.avg_win_profit).toLocaleString('en-US')+' $';
+document.getElementById("avg-lose-profit").textContent += parseInt(performance.avg_lose_profit).toLocaleString('en-US')+' $';
+document.getElementById("avg-win-profit-rate").textContent += performance.avg_win_profit_rate.toFixed(2)+' %';
+document.getElementById("avg-lose-profit-rate").textContent += performance.avg_lose_profit_rate.toFixed(2)+' %';
+
+document.getElementById("max-win-profit").textContent += parseInt(performance.max_win_profit[0]).toLocaleString('en-US')
+                                                        + '(id: '+performance.max_win_profit[1] +')';
+document.getElementById("max-lose-profit").textContent += parseInt(performance.max_lose_profit[0]).toLocaleString('en-US')
+                                                        +  '(id: '+performance.max_lose_profit[1] +')';
+document.getElementById("max-win-profit-rate").textContent += performance.max_win_profit_rate[0].toFixed(2)+'% ' 
+                                                        + '(id: '+performance.max_win_profit_rate[1] +')';
+document.getElementById("max-lose-profit-rate").textContent += performance.max_lose_profit_rate[0].toFixed(2)+'% '
+                                                        + '(id: '+performance.max_lose_profit_rate[1] +')';
+document.getElementById("max-win-streak").textContent += performance.max_win_streak;
+document.getElementById("max-lose-streak").textContent += performance.max_lose_streak;
+document.getElementById("avg-win-duration").textContent += parseInt(performance.avg_win_duration) +' 일';
+document.getElementById("avg-lose-duration").textContent += parseInt(performance.avg_lose_duration) + ' 일';
+document.getElementById("max-win-duration").textContent += performance.max_win_duration + ' 일';
+document.getElementById("max-lose-duration").textContent += performance.max_lose_duration+' 일';
+document.getElementById("num-win-trades").textContent += performance.num_win_trades;
+document.getElementById("num-lose-trades").textContent += performance.num_lose_trades;
 
 
 const chartdata  =  data.performance.chartdata//JSON.parse(JSON.stringify(performance_data));

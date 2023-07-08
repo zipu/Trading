@@ -4,9 +4,9 @@ description: 시스템 설명
 
 #거래시장 정보
 #quotes_style: bo
-sectors: ~ #['currency','interest-rate','grain']
-instruments: ['AD','C','W','NQ']
-from_date: '2020-08-01'
+sectors: ['currency','interest-rate','grain']
+instruments: #['AD','C','W','NQ']
+from_date: '2019-08-01'
 to_date: ~ #'2018-05-01'
 
 

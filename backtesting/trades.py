@@ -12,7 +12,7 @@ class Trade:
     개별 매매 기록
     """
     def __init__(self, id, entrydate, name, symbol, sector, position, entryprice\
-        ,entrylots, stopprice, entryrisk, entryrisk_ticks, commission):
+        ,entrylots, stopprice, entryrisk, entryrisk_ticks, capital_at_enter, commission):
         
         # 진입 정보
         self.id = id
@@ -24,23 +24,13 @@ class Trade:
         self.entryprice = entryprice
         self.entrylots = entrylots
         self.entryrisk = entryrisk
+        self.entryrisk_rate = entryrisk/capital_at_enter
         self.entryrisk_ticks = entryrisk_ticks
         self.commission = commission
+        self.capital_at_enter = capital_at_enter
 
         #청산 정보
         self.exits = []
-        """
-        exit = {
-            'exittype': exit or stop, 
-            'exitdate': datetime,
-            'exitprice': price,
-            'exitlot': integer,
-            'profit': value,
-            'profit_tick': integer,
-            'duration': days,
-            'result': WIN or LOSE
-        }
-        """
 
         #상태 정보
         self.currentprice = None
@@ -109,7 +99,6 @@ class Trade:
 
         self.profit = sum([exit['profit'] for exit in self.exits])
         self.profit_ticks = sum([exit['profit_ticks'] for exit in self.exits])
-        
 
         if self.lots < 0:
             raise ValueError(f"청산 계약수가 진입 계약수보다 많습니다: {self.id}")
@@ -121,6 +110,7 @@ class Trade:
             self.duration = self.exits[-1]['duration'] if self.exits else 0
             self.result = 'WIN' if self.profit > 0 else 'LOSE'
             self.exittype = self.exits[-1]['exittype'] if self.exits else ''
+            self.profit_rate = self.profit/self.capital_at_enter
     
     
     def price_to_value(self, symbol, position, initial_price, final_price, lots):
@@ -247,7 +237,7 @@ class TradesBook:
           
     
     def add_entry(self, entrydate, symbol, sector, position, entryprice, entrylots, stopprice, commission,\
-                  entryrisk, entryrisk_ticks):
+                  entryrisk, entryrisk_ticks,capital_at_enter):
         
         #risk, risk_ticks = self.price_to_value(symbol, position, entryprice, stopprice, entrylots)
         if entryrisk < 0:
@@ -266,6 +256,7 @@ class TradesBook:
             entryrisk_ticks = entryrisk_ticks,
             commission = commission,
             stopprice = stopprice,
+            capital_at_enter = capital_at_enter
         )
 
         self.book.append(trade)

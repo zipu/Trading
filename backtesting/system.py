@@ -4,6 +4,7 @@
 #from multiprocessing import log_to_stderr
 #from os import stat
 import os
+from itertools import groupby
 from datetime import datetime
 from collections import defaultdict
 import random
@@ -358,6 +359,7 @@ class System:
             'sector': sector,
             'position': position,
             'entryprice': self.price(symbol, quote, position, 'enter'),
+            'capital_at_enter': self.equity.capital
         }
 
         if position == LONG:
@@ -479,22 +481,109 @@ class System:
         trades = win_trades + lose_trades
         cnt = len(trades)
 
+        #최장 dd 계산
+        dd_duration = []
+        for i in equity.groupby('max_capital'):
+            dd_duration.append((i[1].index.max() - i[1].index.min()).days)
+        
+
+        profit = 0
+        duration = 0
+        commission = 0 
+        entryrisk_rate = 0
+        profit_rate= 0
+        ptr = 0
+        streaks = []
+
+        for trade in trades:
+            profit_rate += trade.profit_rate
+            profit += trade.profit
+            entryrisk_rate += trade.entryrisk_rate
+            ptr += trade.profit/trade.entryrisk
+            duration += trade.duration
+            commission += trade.commission
+            if (trade.result == 'WIN') or (trade.result == 'LOSE'):
+                streaks.append(trade.result)
+
+        win_profit = 0
+        win_profit_rate = 0
+        max_win_profit = 0
+        max_win_profit_rate = 0
+        win_duration = 0
+        max_win_duration = 0
+        for win in win_trades:
+            win_profit += win.profit
+            win_profit_rate += win.profit_rate
+            win_duration += win.duration
+            if win.profit > max_win_profit:
+                max_win_profit = win.profit
+                max_win_profit_id = win.id
+            if win.profit_rate > max_win_profit_rate:
+                max_win_profit_rate = win.profit_rate
+                max_win_profit_rate_id = win.id
+            if win.duration > max_win_duration:
+                max_win_duration = win.duration
+
+
+        lose_profit = 0
+        lose_profit_rate = 0
+        max_lose_profit = 0
+        max_lose_profit_rate = 0
+        lose_duration = 0
+        max_lose_duration = 0
+        for lose in lose_trades:
+            lose_profit += lose.profit
+            lose_profit_rate += lose.profit_rate
+            lose_duration += lose.duration
+            if lose.profit < max_lose_profit:
+                max_lose_profit = lose.profit
+                max_lose_profit_id = lose.id
+            if lose.profit_rate < max_lose_profit_rate:
+                max_lose_profit_rate = lose.profit_rate
+                max_lose_profit_rate_id = lose.id
+            if lose.duration > max_lose_duration:
+                max_lose_duration = lose.duration
+
+        max_win_streak = max([ len(list(streak)) for result, streak in groupby(streaks) if result=='WIN'])
+        max_lose_streak = max([ len(list(streak)) for result, streak in groupby(streaks) if result=='LOSE'])
+
         performance = {
             'capital': self.equity.capital,
             'profit': self.equity.capital - self.equity.principal,
             'profit_rate': (self.equity.capital / self.principal -1)*100,
-            'bliss': self.equity.cagr/self.equity.mdd if self.equity.mdd > 0 else '',
+            #'bliss': self.equity.cagr/self.equity.mdd if self.equity.mdd > 0 else '',
+            'avg_profit_rate': profit_rate/cnt if cnt else 0,
             'cagr': self.equity.cagr,
             'mdd': self.equity.mdd,
+            'longest_dd': max(dd_duration),
             #손익비
-            'avg_ptl': sum([t.profit for t in win_trades])/sum([t.profit for t in lose_trades]) if lose_trades else 'inf', 
-            'profit_to_risk': sum([t.profit/t.entryrisk for t in trades])/cnt if cnt else '',
+            'avg_ptl': win_profit/lose_profit if lose_trades else 'inf', 
+            'avg_entryrisk_rate': entryrisk_rate/cnt if cnt else '',
+            'profit_to_risk': ptr/cnt if cnt else '',
             'winrate': len(win_trades)/cnt if cnt else 0,
-            'avg_profit': sum([t.profit for t in trades])/cnt if cnt else '',
-            'avg_win': sum([t.profit for t in win_trades])/len(win_trades) if win_trades else 0,
-            'avg_lose': sum([t.profit for t in lose_trades])/len(lose_trades) if lose_trades else 0,
-            'duration': sum(t.duration for t in trades)/cnt if cnt else '',
+            'avg_profit': profit/cnt if cnt else 0,
+            'avg_duration': duration/cnt if cnt else 0,
             'num_trades': cnt,
+            'commission': commission,
+            # 수익/손실 매매 구분
+            'win_profit': win_profit,
+            'lose_profit': lose_profit,
+            'avg_win_profit': win_profit/len(win_trades) if win_trades else 0,
+            'avg_lose_profit': lose_profit/len(lose_trades) if lose_trades else 0,
+            'avg_win_profit_rate': win_profit_rate/len(win_trades) if win_trades else 0,
+            'avg_lose_profit_rate': lose_profit_rate/len(lose_trades) if lose_trades else 0,
+            'max_win_profit': [max_win_profit, max_win_profit_id],
+            'max_lose_profit': [max_lose_profit, max_lose_profit_id],
+            'max_win_profit_rate': [max_win_profit_rate, max_win_profit_rate_id],
+            'max_lose_profit_rate': [max_lose_profit_rate, max_lose_profit_rate_id],
+            'max_win_streak': max_win_streak,
+            'max_lose_streak': max_lose_streak,
+            'avg_win_duration': win_duration/len(win_trades) if win_trades else 0,
+            'avg_lose_duration': lose_duration/len(lose_trades) if lose_trades else 0,
+            'max_win_duration': max_win_duration,
+            'max_lose_duration': max_lose_duration,
+            'num_win_trades': len(win_trades),
+            'num_lose_trades': len(lose_trades),
             'chartdata': chart_data       
         }
         return performance

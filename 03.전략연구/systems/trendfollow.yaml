@@ -11,15 +11,15 @@ to_date:  ~ #'204-01-01'
 
 
 # 투자 원금
-principal: 10000000 # 단위(dollar)
+principal: 100000 # 단위(dollar)
 
 
 # 리스크 설정
 heat_system: DefaultHeat
-max_system_heat: 0.2 #최대 허용 손실 비율
-max_sector_heat: 0.5 
-max_trade_heat: 0.5 #매매당 최대 허용 손실 비율
-max_lots: 1 #매매당 최대 계약수
+max_system_heat: 0.3 #최대 허용 손실 비율
+max_sector_heat: 0.1 
+max_trade_heat: 0.02 #매매당 최대 허용 손실 비율
+max_lots: 100 #매매당 최대 계약수
 
 #매매환경
 commission: 2.99 #수수료(dollar)
@@ -29,12 +29,14 @@ allow_pyramiding: False
 #지표
 metrics: 
  # - [name, metric, params]
- - [uptrend, TREND, direction='up', period=50, threshold=0.8]
- #- [downtrend, TREND, direction='down', period=50]
+ - [uptrend, TREND, direction='up', period=50, threshold=0.9]
+ - [downtrend, TREND, direction='down', period=50, threshold=0.5]
  #- [sidetrend, TREND, direction='side', period=50]
  #- [pdu, PD, percentile=51]
- - [pd, PD, percentile=1, tau=5]
- #- [min, MIN, period=20]
+ - [pd, PD, percentile=10, tau=50]
+ #- [pd80, PD, percentile=80, tau=5]
+ #- [pd50, PD, percentile=50, tau=5]
+ #- [min, MIN, period=200]
 
 
 entry_rule: 
@@ -42,7 +44,7 @@ entry_rule:
  short: ~
 
 exit_rule: 
- long: close < pd
+ long: close < pd | downtrend > 0
  short: ~
 
 stop_rule: 
