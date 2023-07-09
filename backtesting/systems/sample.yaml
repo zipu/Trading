@@ -5,8 +5,8 @@ description: 시스템 설명
 #거래시장 정보
 #quotes_style: bo
 sectors: ~ #['currency','interest-rate','grain']
-instruments: ~  #['AD','C','W','NQ']
-from_date: '1990-01-01'
+instruments: ['AD','C','W','NQ']
+from_date: '2021-01-01'
 to_date: ~ #'2018-05-01'
 
 

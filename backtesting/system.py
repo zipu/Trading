@@ -511,6 +511,8 @@ class System:
         max_win_profit_rate = 0
         win_duration = 0
         max_win_duration = 0
+        num_win_exit = 0
+        num_win_stop = 0
         for win in win_trades:
             win_profit += win.profit
             win_profit_rate += win.profit_rate
@@ -523,6 +525,10 @@ class System:
                 max_win_profit_rate_id = win.id
             if win.duration > max_win_duration:
                 max_win_duration = win.duration
+            if win.exittype == 'EXIT':
+                num_win_exit += 1
+            elif win.exittype == 'STOP':
+                num_win_stop += 1
 
 
         lose_profit = 0
@@ -531,6 +537,8 @@ class System:
         max_lose_profit_rate = 0
         lose_duration = 0
         max_lose_duration = 0
+        num_lose_exit = 0
+        num_lose_stop = 0
         for lose in lose_trades:
             lose_profit += lose.profit
             lose_profit_rate += lose.profit_rate
@@ -543,6 +551,10 @@ class System:
                 max_lose_profit_rate_id = lose.id
             if lose.duration > max_lose_duration:
                 max_lose_duration = lose.duration
+            if lose.exittype == 'EXIT':
+                num_lose_exit += 1
+            elif lose.exittype == 'STOP':
+                num_lose_stop += 1
 
         max_win_streak = max([ len(list(streak)) for result, streak in groupby(streaks) if result=='WIN'])
         max_lose_streak = max([ len(list(streak)) for result, streak in groupby(streaks) if result=='LOSE'])
@@ -584,6 +596,10 @@ class System:
             'max_lose_duration': max_lose_duration,
             'num_win_trades': len(win_trades),
             'num_lose_trades': len(lose_trades),
+            'num_win_exit': num_win_exit,
+            'num_win_stop': num_win_stop,
+            'num_lose_exit': num_lose_exit,
+            'num_lose_stop': num_lose_stop,
             'chartdata': chart_data       
         }
         return performance
@@ -661,7 +677,7 @@ class System:
                 'symbol': symbol,
                 'profit': table.profit.sum()+table.flame.sum(),
                 'avg_profit': table.profit.mean(),
-                'profit_to_risk': 100*(table.profit/table.entryrisk).mean(),
+                'profit_to_risk': (table.profit/table.entryrisk).mean(),
                 'winrate': 100*len(table[table.profit > 0])/len(table),
                 'duration': table.duration.mean(),
                 'num_trades': len(table)

@@ -7,12 +7,12 @@
             height: 30px;
         }
         th {
-            background-color: #f4fade;
+            background-color: #ecfceb;
             text-align:center;
         }
 
-        td {
-            text-align:left;
+        #performance-table > td {
+            text-align: left;
         }
 
         .separator {
@@ -27,11 +27,12 @@
     </style>
 </head>
 <body>
+    <!-- 시스템 설명 -->
     <div align="center">
         <h1> 시스템 성능 보고서 </h1>
         <h3 id="date"> 테스트 날짜: </h3>
         <div align="center">
-            <table border="1px solid black" width="800px" style="border-collapse:collapse">
+            <table id='performance-table' border="1px solid black" width="800px" style="border-collapse:collapse">
                 <tr height="35px">
                     <th width="20%"> 시스템명</th>
                     <td style="padding-left:10px" id="system-name"></td>
@@ -133,6 +134,7 @@
             </table><br><br>
         </div>
     </div>
+    <!-- 종합 결과 -->
     <div align="center">
         <h2> 1. 종합 결과 </h2>
         <figure class="highcharts-figure" style="width:1000px;">
@@ -215,7 +217,7 @@
                     <td>손익비</td>
                     <td class="result" id="avg-ptl"></td>
                     <td class="separator"></td>
-                    <td>매매수</td>
+                    <td># Trades</td>
                     <td class="result" id="num-win-trades"></td>
                     <td class="result" id="num-lose-trades"></td>
                 </tr>
@@ -223,17 +225,17 @@
                     <td>Avg. Entry Risk</td>
                     <td class="result" id="avg-entryrisk-rate"></td>
                     <td class="separator"></td>
-                    <td></td>
-                    <td class="result"></td>
-                    <td class="result"></td>
+                    <td># Exits</td>
+                    <td class="result" id="num-win-exit"></td>
+                    <td class="result" id="num-lose-exit"></td>
                 </tr>
                 <tr>
                     <td> Profit per E. Risk</td>
                     <td class="result" id="profit-per-risk"></td>
                     <td class="separator"></td>
-                    <td class="result"></td>
-                    <td class="result"></td>
-                    <td class="result"></td>
+                    <td># Stops</td>
+                    <td class="result" id="num-win-stop"></td>
+                    <td class="result" id="num-lose-stop"></td>
                 </tr>
                 <tr>
                     <td>평균 보유기간</td>
@@ -260,47 +262,50 @@
                     <td class="result"></td>
                 </tr>
             </table>
-
+        </div>
     </div>
+    
+    <!--- 섹터 -->
     <div align="center" style="margin-top:100px">
         <h2> 2. 섹터별 결과 </h2>
         <div align="center">
             <table border="1" width="900px" style="border-collapse:collapse" id="sector-result">
                 <tr align="center">
                     <th width="14.3%">섹터</th>
-                    <th width="14.3%">총손익</th>
-                    <th width="14.3%">평균손익</th>
-                    <th width="14.3%">위험대비손익</th>
-                    <th width="14.3%">승률</th>
-                    <th width="14.3%">보유기간</th>
-                    <th width="14.3%">매매횟수</th>
-                </tr>
-            </table>
-      </div>
-    </div>
-    <div align="center" id="sector-detail">
-        <figure class="highcharts-figure" style="width:1000px;">
-            <div id="sector-chart"></div>
-        </figure>
-    </div>
-
-    <div align="center" style="margin-top:100px">
-        <h2> 3. 상품별 결과 </h2>
-        <div align="center">
-            <table border="1" width="900px" style="border-collapse:collapse" id="product-result">
-                <tr align="center">
-                    <th width="14.3%">상품명</th>
-                    <th width="14.3%">총손익</th>
-                    <th width="14.3%">평균손익</th>
-                    <th width="14.3%">위험대비손익</th>
+                    <th width="14.3%">누적수익</th>
+                    <th width="14.3%">평균수익</th>
+                    <th width="14.3%">위험대비수익</th>
                     <th width="14.3%">승률</th>
                     <th width="14.3%">보유기간</th>
                     <th width="14.3%">매매횟수</th>
                 </tr>
             </table>
         </div>
+    <div align="center" id="sector-detail">
+        <figure class="highcharts-figure" style="width:1000px;">
+            <div id="sector-chart"></div>
+        </figure>
     </div>
+    </div>
+
+    <!-- 상품별 -->
+    <div align="center" style="margin-top:100px">
+        <h2> 3. 상품별 결과 </h2>
+        <div align="center">
+            <table border="1" width="900px" style="border-collapse:collapse" id="product-result">
+                <tr align="center">
+                    <th width="14.3%">상품명</th>
+                    <th width="14.3%">누적수익</th>
+                    <th width="14.3%">평균수익</th>
+                    <th width="14.3%">위험대비수익</th>
+                    <th width="14.3%">승률</th>
+                    <th width="14.3%">보유기간</th>
+                    <th width="14.3%">매매횟수</th>
+                </tr>
+            </table>
+        </div>
     <div align="center" id="product-detail">
+    </div>
     </div>
 
 </body>
@@ -336,9 +341,9 @@ dom = document.getElementById("system-metrics");
 html = "";
 for (metric in system_info.metrics){
     html+=`<tr align='center'>
-               <td style='border:1px solid black;padding-left:10px'>${system_info.metrics[metric][0]}</td>
-               <td style='border:1px solid black;padding-left:10px'>${system_info.metrics[metric][1]}</td>
-               <td style='border:1px solid black;padding-left:10px'>${String(system_info.metrics[metric].slice(2))}</td>
+               <td style='border:1px solid black;padding-left:10px;width:30%'>${system_info.metrics[metric][0]}</td>
+               <td style='border:1px solid black;padding-left:10px;width:30%'>${system_info.metrics[metric][1]}</td>
+               <td style='border:1px solid black;padding-left:10px;white-space: pre-line'>${String(system_info.metrics[metric].slice(2)).replaceAll(',','\n ')}</td>
             </tr>`;
 };
 dom.innerHTML += html;
@@ -391,6 +396,10 @@ document.getElementById("max-win-duration").textContent += performance.max_win_d
 document.getElementById("max-lose-duration").textContent += performance.max_lose_duration+' 일';
 document.getElementById("num-win-trades").textContent += performance.num_win_trades;
 document.getElementById("num-lose-trades").textContent += performance.num_lose_trades;
+document.getElementById("num-win-exit").textContent += performance.num_win_exit;
+document.getElementById("num-lose-exit").textContent += performance.num_lose_exit;
+document.getElementById("num-win-stop").textContent += performance.num_win_stop;
+document.getElementById("num-lose-stop").textContent += performance.num_lose_stop;
 
 
 const chartdata  =  data.performance.chartdata//JSON.parse(JSON.stringify(performance_data));
@@ -507,8 +516,8 @@ Highcharts.chart('performance-chart', {
         row.align = "center";
         row.innerHTML = `
             <td>${sector.name}</button></td>
-            <td>$ ${sector.profit.toFixed(0)}</td>
-            <td>$ ${sector.avg_profit.toFixed(0)}</td>
+            <td>$ ${parseInt(sector.profit).toLocaleString('en-US')}</td>
+            <td>$ ${parseInt(sector.avg_profit).toLocaleString('en-US')}</td>
             <td>${sector.profit_to_risk.toFixed(0)}</td>
             <td>${sector.winrate.toFixed(2)} %</td>
             <td>${sector.duration.toFixed(0)}</td>
@@ -573,9 +582,9 @@ var sector_chart = Highcharts.chart('sector-chart', {
         row.align = "center";
         row.innerHTML = `
             <td><button onclick="showDetail('${product.symbol}')" style='width:100%';>${product.name}</button></td>
-            <td>$ ${product.profit.toFixed(0)}</td>
-            <td>$ ${product.avg_profit.toFixed(0)}</td>
-            <td>${product.profit_to_risk.toFixed(2)} %</td>
+            <td>$ ${parseInt(product.profit).toLocaleString('en-US')}</td>
+            <td>$ ${parseInt(product.avg_profit).toLocaleString('en-US')}</td>
+            <td>${product.profit_to_risk.toFixed(2)}</td>
             <td>${product.winrate.toFixed(2)} %</td>
             <td>${product.duration.toFixed(0)}</td>
             <td>${product.num_trades.toFixed(0)}</td>
