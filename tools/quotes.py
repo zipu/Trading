@@ -142,7 +142,7 @@ class Quotes(pd.DataFrame):
             atr = df.max(axis=1).ewm(span=period).mean()
             
             #normalization (z-score) - 지난 1년 데이터 기준
-            atr = (atr - atr.rolling(period=250, min_periods= 1).mean())/atr.rolling(period=250, min_periods= 1).std()
+            atr = (atr - atr.rolling(window=250, min_periods= 1).mean())/atr.rolling(window=250, min_periods= 1).std()
             #atr = norm(atr)
             atr.name = fieldname
             if inplace:
@@ -159,7 +159,7 @@ class Quotes(pd.DataFrame):
                 df['hc'] = np.abs(quote[symbol, 'high'] - quote[symbol, 'close'].shift(1))
                 df['lc'] = np.abs(quote[symbol, 'low'] - quote[symbol, 'close'].shift(1))
                 atr = df.max(axis=1).ewm(span=period).mean()
-                atr = (atr - atr.rolling(period=200, min_periods= 1).mean())/atr.rolling(period=200, min_periods= 1).std()
+                atr = (atr - atr.rolling(window=250, min_periods= 1).mean())/atr.rolling(window=250, min_periods= 1).std()
                 atr.name = (symbol, fieldname)
                 atrs.append(atr)
             atrs = pd.concat(atrs, axis=1)

@@ -476,9 +476,9 @@ class System:
         }
 
         #2. 성능 데이터 
+        trades = self.trades.get(on_fire=False)
         win_trades = self.trades.get(result='WIN')
         lose_trades = self.trades.get(result='LOSE')
-        trades = win_trades + lose_trades
         cnt = len(trades)
 
         #최장 dd 계산
@@ -556,8 +556,8 @@ class System:
             elif lose.exittype == 'STOP':
                 num_lose_stop += 1
 
-        max_win_streak = max([ len(list(streak)) for result, streak in groupby(streaks) if result=='WIN'])
-        max_lose_streak = max([ len(list(streak)) for result, streak in groupby(streaks) if result=='LOSE'])
+        max_win_streak = max([ len(list(streak)) for result, streak in groupby(streaks) if result=='WIN'], default=0)
+        max_lose_streak = max([ len(list(streak)) for result, streak in groupby(streaks) if result=='LOSE'], default=0)
 
         performance = {
             'capital': self.equity.capital,
@@ -584,10 +584,10 @@ class System:
             'avg_lose_profit': lose_profit/len(lose_trades) if lose_trades else 0,
             'avg_win_profit_rate': win_profit_rate/len(win_trades) if win_trades else 0,
             'avg_lose_profit_rate': lose_profit_rate/len(lose_trades) if lose_trades else 0,
-            'max_win_profit': [max_win_profit, max_win_profit_id],
-            'max_lose_profit': [max_lose_profit, max_lose_profit_id],
-            'max_win_profit_rate': [max_win_profit_rate, max_win_profit_rate_id],
-            'max_lose_profit_rate': [max_lose_profit_rate, max_lose_profit_rate_id],
+            'max_win_profit': [max_win_profit, max_win_profit_id] if win_trades else [0, ''],
+            'max_lose_profit': [max_lose_profit, max_lose_profit_id] if lose_trades else [0, ''],
+            'max_win_profit_rate': [max_win_profit_rate, max_win_profit_rate_id] if win_trades else [0, ''],
+            'max_lose_profit_rate': [max_lose_profit_rate, max_lose_profit_rate_id] if lose_trades else [0, ''],
             'max_win_streak': max_win_streak,
             'max_lose_streak': max_lose_streak,
             'avg_win_duration': win_duration/len(win_trades) if win_trades else 0,
@@ -883,6 +883,9 @@ class System:
             'sector_detail': sector_detail
         }
 
+       
+
+
         #파일 생성 및 저장
         with open(os.path.join(savedir, 'data.txt'), 'w', encoding='utf8') as f:
             f.write(f"var data={data}")
@@ -898,6 +901,20 @@ class System:
 
         # 자산 내역 생성 및 저장
         pd.DataFrame(self.equity.log()).to_csv(os.path.join(savedir,f'equity_history.csv'))
+
+        #system performance 만 json 형식으로 저장
+        from tools.constants import DATADIR
+        import json
+
+        jsondir = os.path.join(DATADIR, 'backtesting', 'system_performance.json')
+        jsonobj = json.load(open(jsondir))
+        del data['performance']['chartdata']
+        jsonobj.append({
+                'system': data['system_info'],
+                'performance': data['performance']
+        })
+        with open(jsondir, mode='w+', encoding='utf-8') as f:
+            json.dump(jsonobj, f)
 
         #새창에서 열기
         url = os.path.abspath(savepath)
