@@ -347,7 +347,7 @@ class System:
         매매 진입
         """
         # 해당 상품을 이미 최대 계약수로 매매하고 있다면 스킵
-        if sum([fire.lots for fire in self.trades.get_on_fires(symbol=symbol)]) >= self.heat.max_lots:
+        if self.heat.max_lots and sum([fire.lots for fire in self.trades.get_on_fires(symbol=symbol)]) >= self.heat.max_lots:
             return
 
 
@@ -679,7 +679,7 @@ class System:
                 'avg_profit': table.profit.mean(),
                 'profit_to_risk': (table.profit/table.entryrisk).mean(),
                 'winrate': 100*len(table[table.profit > 0])/len(table),
-                'duration': table.duration.mean(),
+                'duration': table.duration.mean() if len(table.duration.dropna())>0 else 0,
                 'num_trades': len(table)
             }
             result.append(trade)
@@ -712,10 +712,9 @@ class System:
         name = instruments[symbol].name
         quote = self.quotes[symbol][['open','high','low','close']].dropna()
         quote.insert(0, 'date', quote.index.values.astype('M8[ms]').astype('int64'))
-        trades = pd.DataFrame(self.trades.log(symbol=symbol))
+        trades = pd.DataFrame(self.trades.log(symbol=symbol, on_fire=False))
         if len(trades) == 0:
             return {}
-        
         # 차트 데이터 생성
         # 1. ohlc 데이터 수익 & 손실 매매 구분
         win_masks = []
@@ -821,7 +820,7 @@ class System:
             'max_system_heat': self.abstract['max_system_heat'],
             'max_sector_heat':self.abstract['max_sector_heat'],
             'max_trade_heat': self.abstract['max_trade_heat'],
-            'max_lots': self.abstract['max_lots'],
+            'max_lots': self.abstract['max_lots'] if self.abstract['max_lots'] else '',
             'commission': self.abstract['commission'],
             'skid': self.abstract['skid'],
             'metrics': self.abstract['metrics'],
@@ -902,18 +901,24 @@ class System:
         # 자산 내역 생성 및 저장
         pd.DataFrame(self.equity.log()).to_csv(os.path.join(savedir,f'equity_history.csv'))
 
-        #system performance 만 json 형식으로 저장
+        #시스템의 성능만 요약하여 data/backtesting/시스템명.json 파일에 저장
         from tools.constants import DATADIR
         import json
 
-        jsondir = os.path.join(DATADIR, 'backtesting', 'system_performance.json')
-        jsonobj = json.load(open(jsondir))
+        objdir = os.path.join(DATADIR, 'backtesting')
+        objfilename = f"{self.name}.json"
+        objpath = os.path.join(objdir, objfilename)
+        if  os.path.isfile(objpath):
+            jsonobj = json.load(open(objpath))
+        else:
+            jsonobj = []
+        
         del data['performance']['chartdata']
         jsonobj.append({
                 'system': data['system_info'],
                 'performance': data['performance']
         })
-        with open(jsondir, mode='w+', encoding='utf-8') as f:
+        with open(objpath, mode='w+', encoding='utf-8') as f:
             json.dump(jsonobj, f)
 
         #새창에서 열기

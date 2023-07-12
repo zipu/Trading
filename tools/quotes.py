@@ -33,7 +33,8 @@ class Quotes(pd.DataFrame):
         self.attrs['axes'] = {
             'ohlc': ['EMA','MA','MAX','MIN', 'PD'],
             'atr': ['ATR'],
-            'trend': ['TREND']
+            'trend age': ['TRENDAGE'],
+            'trend prob': ['TRENDPROB']
         }
 
         if len(self.columns.names) == 1:
@@ -279,7 +280,7 @@ class Quotes(pd.DataFrame):
             else:
                 return ind
             
-    def TREND(self, period, direction, threshold, inplace=False, fieldname=None):
+    def TRENDAGE(self, period, direction, threshold, inplace=False, fieldname=None):
         """
         N-days Trend Index
         direction: 'down' or 'side' or 'up'
@@ -338,6 +339,52 @@ class Quotes(pd.DataFrame):
             else:
                 return ind
 
+    def TRENDPROB(self, period, direction, inplace=False, fieldname=None):
+        """
+        N-days Trend Index
+        direction: 'down' or 'side' or 'up'
+        period: integer , only 50 now
+        """
+        fieldname = fieldname if fieldname else f'trend{direction}{period}'
+        db_path = os.path.join(DATADIR,'trend index','trend_index.hdf')
+        tidx = ['','down','side','up'].index(direction)
+
+        if self.type == 'single':
+            symbol = self.attrs['symbol']
+            file = h5py.File(db_path, 'r')
+            data = file[symbol][f"trend{period}"][:, tidx]
+            dates = file[symbol][f"trend{period}"][:, 0].astype('M8[s]')
+            file.close()
+
+           
+            ind = pd.Series(data=data, index=dates)
+            ind.name = fieldname
+            if inplace:
+                #self[fieldname] = ind
+                return Quotes(self.join(ind, how='left'))
+            else: 
+                return ind
+            
+        if self.type == 'multiple':
+            ind = []
+            symbols = self.columns.levels[0]
+            for symbol in symbols:
+                file = h5py.File(db_path, 'r')
+                data = file[symbol][f"trend{period}"][:, tidx]
+                dates = file[symbol][f"trend{period}"][:, 0].astype('M8[s]')
+                file.close()
+                df = pd.Series(data=data, index=dates)
+                df.name = (symbol, fieldname)
+                ind.append(df)
+            
+            ind = pd.concat(ind, axis=1)
+            if inplace:
+                #self[ind.columns] = ind
+                return Quotes(self.join(ind, how='left').sort_index(axis=1, level=0, sort_remaining=False))
+                #self.sort_index(axis=1, level=0, sort_remaining=False, inplace=True)
+
+            else:
+                return ind
 
 
 

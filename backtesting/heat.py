@@ -65,7 +65,10 @@ class DefaultHeat:
         else:
             lots_trade = int(max_trade_risk/risk)
 
-        return min([lots_system, lots_sector, lots_trade, self.max_lots])
+        if self.max_lots:
+            return min([lots_system, lots_sector, lots_trade, self.max_lots])
+        else: 
+            return min([lots_system, lots_sector, lots_trade])
 
         
 

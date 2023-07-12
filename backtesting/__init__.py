@@ -9,5 +9,5 @@
 #from .backtesting import BackTester
 #from .simulator import Trader, Market 
 
-from .trader import Trader
+from .trader import Trader, load
 from .system import System

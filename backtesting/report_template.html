@@ -39,7 +39,7 @@
                 </tr>
                 <tr height="35px">
                     <th> 시스템 설명 </th>
-                    <td style="padding-left:10px" id="system-description"></td>
+                    <td style="padding-left:10px;white-space: pre-line" id="system-description"></td>
                 </tr>
                 <tr height="35px">
                     <th> 거래 상품 </th>
@@ -137,11 +137,11 @@
     <!-- 종합 결과 -->
     <div align="center">
         <h2> 1. 종합 결과 </h2>
-        <figure class="highcharts-figure" style="width:1000px;">
+        <figure class="highcharts-figure" style="width:900px;">
             <div id="performance-chart"></div>
         </figure>
-        <div align="center" width="900px">
-            <table  width="900px" style="font-weight:bold;collapse;border-bottom: 2px solid darkgrey;" >
+        <div align="center" width="800px">
+            <table  width="800px" style="font-weight:bold; border-collapse: collapse;border-bottom: 2px solid darkgrey;" >
                 <tr height="40px;">
                     <th colspan="2">매매종합</th>
                     <td class="separator"></td>
@@ -269,7 +269,7 @@
     <div align="center" style="margin-top:100px">
         <h2> 2. 섹터별 결과 </h2>
         <div align="center">
-            <table border="1" width="900px" style="border-collapse:collapse" id="sector-result">
+            <table border="1" width="800px" style="border-collapse:collapse" id="sector-result">
                 <tr align="center">
                     <th width="14.3%">섹터</th>
                     <th width="14.3%">누적수익</th>
@@ -282,7 +282,7 @@
             </table>
         </div>
     <div align="center" id="sector-detail">
-        <figure class="highcharts-figure" style="width:1000px;">
+        <figure class="highcharts-figure" style="width:800px;">
             <div id="sector-chart"></div>
         </figure>
     </div>
@@ -292,7 +292,7 @@
     <div align="center" style="margin-top:100px">
         <h2> 3. 상품별 결과 </h2>
         <div align="center">
-            <table border="1" width="900px" style="border-collapse:collapse" id="product-result">
+            <table border="1" width="800px" style="border-collapse:collapse" id="product-result">
                 <tr align="center">
                     <th width="14.3%">상품명</th>
                     <th width="14.3%">누적수익</th>
@@ -361,7 +361,7 @@ const performance = data.performance;
 document.getElementById("capital").textContent += parseInt(performance.capital).toLocaleString('en-US') + ' $';
 document.getElementById("profit").textContent += parseInt(performance.profit).toLocaleString('en-US')+ ' $';
 document.getElementById("profit-rate").textContent += performance.profit_rate.toFixed(2)+' %';
-document.getElementById("avg-profit-rate").textContent += performance.avg_profit_rate.toFixed(2)+' %';
+document.getElementById("avg-profit-rate").textContent += performance.avg_profit_rate.toFixed(4)+' %';
 document.getElementById("cagr").textContent += (performance.cagr*100).toFixed(2)+' %';
 document.getElementById("mdd").textContent += performance.mdd.toFixed(2)+' %';
 document.getElementById("longest-dd").textContent += performance.longest_dd+' 일';
@@ -518,7 +518,7 @@ Highcharts.chart('performance-chart', {
             <td>${sector.name}</button></td>
             <td>$ ${parseInt(sector.profit).toLocaleString('en-US')}</td>
             <td>$ ${parseInt(sector.avg_profit).toLocaleString('en-US')}</td>
-            <td>${sector.profit_to_risk.toFixed(0)}</td>
+            <td>${sector.profit_to_risk.toFixed(2)}</td>
             <td>${sector.winrate.toFixed(2)} %</td>
             <td>${sector.duration.toFixed(0)}</td>
             <td>${sector.num_trades.toFixed(0)}</td>
@@ -609,7 +609,7 @@ function showDetail(symbol){
     parent.appendChild(script);
 
     var figure = document.createElement("figure")
-    figure.style.width = '1000px';
+    figure.style.width = '900px';
     var div = document.createElement("div")
     div.id = 'product-chart';
     figure.appendChild(div);

@@ -78,3 +78,15 @@ class Trader:
             self.systems.append(
                     System(system, self.quotes, id)
                 )
+            
+
+def load(systemname):
+    # 시스템 성능 정리 파일 로드
+    import os, json
+    from tools.constants import DATADIR 
+    objdir = os.path.join(DATADIR, 'backtesting')
+    objfilename = f"{systemname}.json"
+    objpath = os.path.join(objdir, objfilename)
+    with open(objpath) as f:
+        obj = json.load(f)
+    return obj
