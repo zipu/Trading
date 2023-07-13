@@ -1,0 +1,54 @@
+#시스템 명
+name: 20day-uptrend-exit-at-pd10
+description: |
+  20일 상승 추세진입 후 N Quantile PD (Tau = 10) 청산
+
+#거래시장 정보
+sectors: ~ #['currency','grain']
+instruments: ~ #['NQ','W','C','AD','ES','CL']
+from_date: '1990-01-01'
+to_date:  ~ #'204-01-01'
+
+
+# 투자 원금
+principal: 100000 # 단위(dollar)
+
+
+# 리스크 설정
+heat_system: DefaultHeat
+max_system_heat: 0.3 #최대 허용 손실 비율
+max_sector_heat: 0.2
+max_trade_heat: 0.05 #매매당 최대 허용 손실 비율
+max_lots: 1 #매매당 최대 계약수
+
+#매매환경
+commission: 2.99 #수수료(dollar)
+skid: 5 # entry price = open + (high-open)*skid for buy order
+
+#(아직 구현 안됨)
+allow_pyramiding: False
+
+#지표
+metrics: 
+ # - [name, metric, params]
+ - [min200, MIN, period=200]
+ - [uptrend20, TRENDAGE, direction='up', period=20, threshold=0.7]
+ #- [pd, PD, percentile=10, tau=10]
+ 
+
+entry_rule: 
+ long:  uptrend20==1
+ short: ~
+
+exit_rule: 
+ long: low<pd
+ short: ~
+
+stop_rule: 
+ long: min200
+ short: ~
+ 
+
+
+
+
