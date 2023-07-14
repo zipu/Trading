@@ -34,7 +34,7 @@ class Quotes(pd.DataFrame):
             'ohlc': ['EMA','MA','MAX','MIN', 'PD'],
             'atr': ['ATR'],
             'trend age': ['TRENDAGE'],
-            'trend prob': ['TRENDPROB']
+            'trend prob': ['TRENDPROB'],
         }
 
         if len(self.columns.names) == 1:
@@ -53,6 +53,72 @@ class Quotes(pd.DataFrame):
         #    self.columns.names = (['field'])
         #if type == 'multiple':
         #    self.columns.names = (['symbol', 'field'])
+
+    def ByDate(self, start=None, end=None, inplace=False, fieldname=None):
+        """ Buy and Hold """
+        fieldname = fieldname if fieldname else 'bydate'
+        if not end:
+            end = self.dropna().index[-2]
+        
+        if not start:
+            start = self.dropna().index[1]
+
+
+        if self.type == 'single':
+            ind = pd.Series(data=0, index=self.index)
+            ind.loc[start:].iloc[1] = 1
+            ind.loc[:end].iloc[-2] = -1
+
+            if inplace:
+                return Quotes(self.join(ind, how='left'))
+                #self[fieldname] = ma
+            else: 
+                return ind
+        
+        if self.type == 'multiple':
+            ma = []
+            for symbol, quote in self.groupby(level=0, axis=1):
+                ind = pd.Series(data=0, index=quote.index)
+                ind.loc[start:].iloc[1] = 1
+                ind.loc[:end].iloc[-2] = -1
+                ind.name = (symbol, fieldname)
+                ma.append(ind)
+            
+            ma = pd.concat(ma, axis=1)
+            if inplace:
+                #self[ma.columns] = ma
+                #self.sort_index(axis=1, level=0, sort_remaining=False, inplace=True)
+                return Quotes(self.join(ma, how='left').sort_index(axis=1, level=0, sort_remaining=False))
+            else:
+                return ma
+            
+    def NeverStop(self, inplace=False, fieldname=None):
+        """ 스탑이 없는 전략을 위해 최저가 보다 아래에 스탑가격을 만들기 위함"""
+        fieldname = fieldname if fieldname else 'neverstop'
+
+        if self.type == 'single':
+            self[fieldname] = self['low'].min()-0.00000001
+            if inplace:
+                return self
+                #self[fieldname] = ma
+            else: 
+                return self[fieldname]
+        
+        if self.type == 'multiple':
+            ma = []
+            for symbol, quote in self.groupby(level=0, axis=1):
+                quote[symbol, fieldname] = quote[symbol]['low'].min() - 1
+                quote[symbol, fieldname].name = (symbol, fieldname)
+                ma.append(quote[symbol, fieldname])
+            
+            ma = pd.concat(ma, axis=1)
+            if inplace:
+                #self[ma.columns] = ma
+                #self.sort_index(axis=1, level=0, sort_remaining=False, inplace=True)
+                return Quotes(self.join(ma, how='left').sort_index(axis=1, level=0, sort_remaining=False))
+            else:
+                return ma
+
 
 
     def MA(self, period, ref='close', inplace=False, fieldname=None):

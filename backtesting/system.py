@@ -186,7 +186,9 @@ class System:
         axes_ref = quotes.attrs['axes']
         axes = {}
         for metric in metrics:
-            axes[metric[0]] = [k for k,v in axes_ref.items() if metric[1] in v][0]
+            temp = [k for k,v in axes_ref.items() if metric[1] in v]
+            if temp:
+                axes[metric[0]] = temp[0]
         df.attrs['axes'] = axes
 
         # OHLC 데이터가 없는 거래일에 metric 값은 Averaging 결과로써 존재할 수 있음. 
@@ -748,9 +750,9 @@ class System:
         metricdata = []
         for name, axis in self.metrics.attrs['axes'].items():
             metricdata.append({
-                'name': name,
-                'axis': axis,
-                'data': metrics[['date', name]].values.tolist()
+                    'name': name,
+                    'axis': axis,
+                    'data': metrics[['date', name]].values.tolist()
             })
 
         #2-1. ohlc 차트와 함께 나타낼 지표
