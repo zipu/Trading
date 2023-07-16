@@ -33,7 +33,7 @@ metrics:
  # - [name, metric, params]
  #- [min200, MIN, period=200]
  - [uptrend200, TRENDAGE, direction='up', period=200, threshold=0.9]
- #- [pd, PD, percentile=10, tau=10]
+ #- [pd, PD, percentile=10, tau=50]
  
 
 entry_rule: 

@@ -184,12 +184,12 @@ class System:
 
         # plotting시 추가 axis 생성여부를 판단하기 위해 각 metric의 형식을 attribute로 저장
         axes_ref = quotes.attrs['axes']
-        axes = {}
-        for metric in metrics:
-            temp = [k for k,v in axes_ref.items() if metric[1] in v]
-            if temp:
-                axes[metric[0]] = temp[0]
-        df.attrs['axes'] = axes
+        axes = defaultdict(list)
+        for metric in self.abstract['metrics']:
+            if metric[1] in axes_ref.keys():
+                axisname = axes_ref[metric[1]]
+                axes[axisname].append(metric[0])
+        df.attrs['axes'] = dict(axes)
 
         # OHLC 데이터가 없는 거래일에 metric 값은 Averaging 결과로써 존재할 수 있음. 
         # OHLC 데이터 Nan 인 날은 거래를 하지 않기 때문에 시그널도 NaN 값으로 변경 해줌
@@ -712,7 +712,8 @@ class System:
         from functools import reduce
         
         name = instruments[symbol].name
-        quote = self.quotes[symbol][['open','high','low','close']].dropna()
+        dp = instruments[symbol].decimal_places
+        quote = self.quotes[symbol][['open','high','low','close']].dropna().astype('float64').round(dp)
         quote.insert(0, 'date', quote.index.values.astype('M8[ms]').astype('int64'))
         trades = pd.DataFrame(self.trades.log(symbol=symbol, on_fire=False))
         if len(trades) == 0:
@@ -739,21 +740,23 @@ class System:
         neutrals = quote.loc[neutral_dates].values.tolist()
 
         #2. 지표 데이터
-        metrics = self.metrics[symbol].dropna()
-        metrics.insert(0, 'date', metrics.index.values.astype('M8[ms]').astype('int64'))
+        metrics = self.metrics[symbol].dropna().astype('float64').round(4)
+        metrics.insert(0, 'date', metrics.index.values.astype('M8[s]').astype('int64'))
 
         #metric_type = {
         #    'price':[k for k, v in self.metrics.attrs['type'].items() if v=='price' ],
         #    'index':[k for k, v in self.metrics.attrs['type'].items() if v=='index' ]
         #}
 
+        metricdates = metrics.index.values.astype('M8[s]').astype('int64').tolist()
         metricdata = []
-        for name, axis in self.metrics.attrs['axes'].items():
-            metricdata.append({
-                    'name': name,
-                    'axis': axis,
-                    'data': metrics[['date', name]].values.tolist()
-            })
+        for axis, names in self.metrics.attrs['axes'].items():
+            for name in names:
+                metricdata.append({
+                        'name': name,
+                        'axis': axis,
+                        'data': metrics[name].values.tolist()
+                })
 
         #2-1. ohlc 차트와 함께 나타낼 지표
         #metrics_with_ohlc = []
@@ -784,6 +787,7 @@ class System:
             'loses': loses,
             'neutrals': neutrals,
             'metrics':metricdata,
+            'metric_dates': metricdates,
             #'metrics_with_ohlc': metrics_with_ohlc,
             #'metrics_separated': metrics_separated,
             'cum_profit': cum_profit,
@@ -874,14 +878,14 @@ class System:
             pd.DataFrame(self.trades.log(symbol=symbol)).to_csv(os.path.join(savedir,f'trade_history_({symbol}).csv'))
 
         
-        
         #detail_result = self.trade_result(level='symbol')
         data ={
             'system_info': system_info,
             'performance': performance,
             'sector_result': sector_result,
             'product_result': product_result,
-            'sector_detail': sector_detail
+            'sector_detail': sector_detail,
+            'chart_axes': self.metrics.attrs['axes'] #axes
         }
 
        

@@ -30,11 +30,15 @@ class Quotes(pd.DataFrame):
             self.attrs['symbol'] = data.attrs['symbol']
 
         #metric 값들의 형식을 저장 (plotting 용도로 사용)
-        self.attrs['axes'] = {
-            'ohlc': ['EMA','MA','MAX','MIN', 'PD'],
-            'atr': ['ATR'],
-            'trend age': ['TRENDAGE'],
-            'trend prob': ['TRENDPROB'],
+        self.attrs['axes'] = { 
+            'EMA': 'ohlc',
+            'MA': 'ohlc',
+            'MAX': 'ohlc',
+            'MIN': 'ohlc',
+            'PD': 'ohlc',
+            'ATR': 'atr',
+            'TRENDAGE': 'trend age',
+            'TRENDPROB': 'trend prob'
         }
 
         if len(self.columns.names) == 1:

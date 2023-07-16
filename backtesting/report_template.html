@@ -1,6 +1,7 @@
 <html>
 <head>
     <script src="https://code.highcharts.com/stock/highstock.js"></script>
+    
     <script src="https://code.highcharts.com/modules/accessibility.js"></script>
     <style>
         tr {
@@ -285,7 +286,7 @@
         <figure class="highcharts-figure" style="width:800px;">
             <div id="sector-chart"></div>
         </figure>
-    </div>
+    </div>  
     </div>
 
     <!-- 상품별 -->
@@ -304,8 +305,11 @@
                 </tr>
             </table>
         </div>
-    <div align="center" id="product-detail">
-    </div>
+        <div align="center" id="product-detail">
+            <figure style="width:900px;">
+                <div id="product-chart"></div>
+            </figure>
+        </div>
     </div>
 
 </body>
@@ -575,8 +579,8 @@ var sector_chart = Highcharts.chart('sector-chart', {
 
 <!-- 4. 상품 보고서 -->
 <script>
-    const products = data.product_result;
-    var tbl = document.getElementById("product-result");
+const products = data.product_result;
+var tbl = document.getElementById("product-result");
     for (product of products){
         var row = tbl.insertRow(); //테이블 행 추가
         row.align = "center";
@@ -591,40 +595,10 @@ var sector_chart = Highcharts.chart('sector-chart', {
         `
     };
 
-var produc_chart;
-function showDetail(symbol){
-    var parent = document.getElementById("product-detail");
-    
-    // 기존 dom 제거 
-    var script = document.getElementById("product-chart-data");
-    if (script) script.remove();
-
-    var chart = document.getElementById("product-chart")
-    if (chart) chart.remove();
-    
-    script = document.createElement("script");
-    script.id = 'product-chart-data';
-    script.type = 'text/javascript';
-    script.src = `product_data(${symbol}).txt`;
-    parent.appendChild(script);
-
-    var figure = document.createElement("figure")
-    figure.style.width = '900px';
-    var div = document.createElement("div")
-    div.id = 'product-chart';
-    figure.appendChild(div);
-    parent.appendChild(figure);
-
-    script.onload = () => {
-
-        let trade_data = product_data.chartdata;
-        product_chart = Highcharts.stockChart('product-chart', {
+var product_chart = Highcharts.stockChart('product-chart', {
                 chart: {
                     height: 600,
                     panning: true
-                },
-                title: {
-                    text: product_data.name
                 },
                 legend: {
                     enabled: true
@@ -682,11 +656,9 @@ function showDetail(symbol){
                     borderWidth: 0,
                     backgroundColor: 'rgba(255,255,255,0.8)'
                 },
-
                 series: [{
                     type: 'ohlc',
                     name: 'win',
-                    data: trade_data.wins,
                     yAxis: 'ohlc',
                     color: 'red',
                     showInLegend: false, 
@@ -694,7 +666,6 @@ function showDetail(symbol){
                 },{
                     type: 'ohlc',
                     name: 'lose',
-                    data: trade_data.loses,
                     yAxis: 'ohlc',
                     color: 'blue',
                     showInLegend: false, 
@@ -702,107 +673,144 @@ function showDetail(symbol){
                 },{
                     type: 'ohlc',
                     name: 'neutral',
-                    data: trade_data.neutrals,
                     yAxis: 'ohlc',
                     color: 'black',
                     showInLegend: false, 
                     states: { hover: { enabled: false } },
                 }]
-            });
+});
 
-        // 지표 그리기
-        let chartheight = product_chart.chartHeight;
-        let top = 500; //차트 포지션 용
-        const height = 150;
-        for (metric of trade_data.metrics){
-            if (!product_chart.get(metric.axis)){
-                chartheight += height;
-                product_chart.setSize(undefined, chartheight);
-                product_chart.addAxis({
-                        id:metric.axis,
-                        opposite:false,
-                        title: { 
-                            text: metric.axis,
-                        },
-                        top: top,
-                        height: height,
-                        offset:0,
-                    
-                });
-                top += height;
-            };
-            product_chart.addSeries({  
-                name: metric.name,
-                data: metric.data,
-                yAxis: metric.axis,
-                lineWidth: 1
-            }, false);
-        };
-        
-        //누적수익 차트 그리기
-        let cum_profit = trade_data.cum_profit;
+// 지표 axis 그리기
+let chartheight = product_chart.chartHeight;
+let topHeight = 500; //차트 포지션 용
+const height = 150;
+for (const axis in data.chart_axes){
+    if (axis != 'ohlc') { //ohlc 차트는 생성할 필요 없음
         chartheight += height;
         product_chart.setSize(undefined, chartheight);
         product_chart.addAxis({
-            id:'cum_profit',
+            id:axis,
             opposite:false,
-            title: { 
-                text: 'Cum. Profit',
-            },
-            top: top,
+            title: { text: axis },
+            top: topHeight,
             height: height,
             offset:0,
-        
+                    
         });
-        product_chart.addSeries({
-                    type: 'line',                      
-                    name: 'cummulative profit',
-                    data: cum_profit,
-                    yAxis: 'cum_profit',
-                    lineWidth: 1.2,
-                    color: 'blue'
-                }, false);
-        //개별수익 차트 그리기
-        let win_profit = trade_data.win_profit;
-        let lose_profit = trade_data.lose_profit;
+        topHeight += height;
+    };
+
+    for (seriesname of data.chart_axes[axis]){
+        product_chart.addSeries({  
+            name: seriesname,
+            yAxis: axis,
+            lineWidth: 1
+        });
+    };
+    
+};
+
+//수익 차트 그리기
+//누적수익 차트 그리기
+chartheight += height;
+product_chart.setSize(undefined, chartheight);
+product_chart.addAxis({
+        id:'cum_profit',
+        opposite:false,
+        title: { text: 'Cum. Profit' },
+        top: topHeight,
+        height: height,
+        offset:0,
         
-        chartheight += height;
-        top += height;
-        product_chart.setSize(undefined, chartheight);
-        product_chart.addAxis({
+});
+product_chart.addSeries({
+                type: 'line',                      
+                name: 'cum_profit',
+                yAxis: 'cum_profit',
+                lineWidth: 1.2,
+                color: 'blue'
+});
+
+//개별수익 차트 그리기
+chartheight += height;
+topHeight += height;
+product_chart.setSize(undefined, chartheight);
+product_chart.addAxis({
             id:'profit',
             opposite:false,
             title: { 
                 text: 'Profit',
             },
-            top: top,
+            top: topHeight,
             height: height,
             offset:0,
         
-        });
-        product_chart.addSeries({
-                    type: 'column',                      
-                    name: 'profit',
-                    data: win_profit,
-                    yAxis: 'profit',
-                    color: 'red',
-                    showInLegend: false, 
-                    states: { hover: { enabled: false } },
-                }, false);
-        product_chart.addSeries({
+});
+product_chart.addSeries({
             type: 'column',                      
-            name: 'profit',
-            data: lose_profit,
+            name: 'win_profit',
             yAxis: 'profit',
-            color: 'blue',
+            color: 'red',
             showInLegend: false, 
             states: { hover: { enabled: false } },
-        }, false);
-            
-            product_chart.redraw();
+        });
+product_chart.addSeries({
+    type: 'column',                      
+    name: 'lose_profit',
+    yAxis: 'profit',
+    color: 'blue',
+    showInLegend: false, 
+    states: { hover: { enabled: false } },
+});
+    
+function showDetail(symbol){
+    var parent = document.getElementById("product-detail");
+    
+    // 기존 script dom 제거 후 새로 생성 및 로드
+    var script = document.getElementById("product-chart-data");
+    if (script) {
+        script.remove();
+        delete product_data;
+    };
+    
+    script = document.createElement("script");
+    script.setAttribute('id','product-chart-data');
+    script.setAttribute('src', `product_data(${symbol}).txt`);
+    script.setAttribute('type', 'text/javascript');
+    script.setAttribute("defer", "defer");
+    parent.appendChild(script);
+    script.onload = () => {
+        dataset = product_data.chartdata;
+        product_chart.setTitle({text:product_data.name});
+        for (series of product_chart.get('ohlc').series){
+            if (series.name == 'win') series.update({data:dataset.wins}, false);
+            else if (series.name == 'lose') series.update({data:dataset.loses}, false);
+            else if (series.name == 'neutral') series.update({data:dataset.neutrals}, false);
+        }
+        for (series of product_chart.get('profit').series){
+            if (series.name == 'win_profit') series.update({data:dataset.win_profit}, false);
+            else if (series.name == 'lose_profit') series.update({data:dataset.lose_profit}, false);
+        }
+        product_chart.get('cum_profit').series[0].update({data:dataset.cum_profit}, false)
+
+        for (metric of dataset.metrics){
+            const metric_data = zip(dataset.metric_dates, metric.data);
+            for (series of product_chart.get(metric.axis).series){
+                if (series.name == metric.name) series.update({data:metric_data},false);
+            };
+        }
+
+
+        product_chart.redraw();
     };
         
 };
+
+function zip(arr1, arr2) {
+  return arr1.map((element, index) => {
+    return [element*1000, arr2[index]];
+  });
+}
 
 </script>
 </html>
