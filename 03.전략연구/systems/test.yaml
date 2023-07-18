@@ -34,24 +34,25 @@ metrics:
  #- [sidetrend200prob, TRENDPROB, direction='side', period=200]
  #- [downtrend200prob, TRENDPROB, direction='down', period=200]
  #- [downtrend20, TRENDAGE, direction='down', 'period=20', threshold=0.7]
- - [uptrend20prob, TRENDPROB, direction='up', 'period=20']
- - [uptrend50prob, TRENDPROB, direction='up', 'period=50']
- - [max200, MAX, period=200]
- - [pd10, PD, tau=10, percentile=10]
- - [pd1, PD, tau=10, percentile=1]
- - [pd90, PD, tau=10, percentile=90]
+ #- [uptrend20prob, TRENDPROB, direction='up', 'period=20']
+ - [uptrend50, TRENDAGE, direction='up', 'period=50', threshold=0.9]
+ - [sidetrend20prob, TRENDPROB, direction='side', 'period=20']
+ - [max20, MAX, period=20]
+ - [pddown, PD, tau=50, percentile=65]
+ #- [pd1, PD, tau=10, percentile=1]
+ - [pdup, PD, tau=50, percentile=95]
 
 entry_rule: 
  long: ~
- short: uptrend50prob<0.01 & high>pd90 & uptrend20prob>0.9
+ short: uptrend50>10 & sidetrend20prob>0.6 & high>pdup
 
 exit_rule: 
  long: ~
- short: low<pd10
+ short: low<pddown
 
 stop_rule: 
  long: ~
- short: max200
+ short: max20
  
 
 

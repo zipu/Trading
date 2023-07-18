@@ -801,9 +801,9 @@ class System:
         필요한 그래프는 highchart 모듈 이용
         """
         import shutil
-        import webbrowser
-
-        import inspect
+        from tools.constants import DATADIR
+        import json
+        from selenium import webdriver
 
         #폴더 생성
         foldername = self.name + '_' + datetime.today().strftime('%Y%m%d%H%M')
@@ -871,8 +871,10 @@ class System:
                 'chartdata': self.product_data(symbol)
             }
             #각각을 별도 파일로 저장
-            with open(os.path.join(savedir, f'product_data({symbol}).txt'), 'w', encoding='utf8') as f:
-                f.write(f"var product_data={product_detail}")
+            with open(os.path.join(savedir, f'product_data({symbol}).json'), 'w', encoding='utf8') as f:
+                #f.write(f"var product_data={product_detail}")
+                json.dump(product_detail, f)
+
             
             #종목별 거래 기록 저장
             pd.DataFrame(self.trades.log(symbol=symbol)).to_csv(os.path.join(savedir,f'trade_history_({symbol}).csv'))
@@ -892,8 +894,9 @@ class System:
 
 
         #파일 생성 및 저장
-        with open(os.path.join(savedir, 'data.txt'), 'w', encoding='utf8') as f:
-            f.write(f"var data={data}")
+        with open(os.path.join(savedir, 'data.json'), 'w', encoding='utf8') as f:
+            #f.write(f"var data={data}")
+            json.dump(data, f)
 
         #템플릿 파일 복사
         template_file = os.path.join(
@@ -908,8 +911,7 @@ class System:
         pd.DataFrame(self.equity.log()).to_csv(os.path.join(savedir,f'equity_history.csv'))
 
         #시스템의 성능만 요약하여 data/backtesting/시스템명.json 파일에 저장
-        from tools.constants import DATADIR
-        import json
+        
 
         objdir = os.path.join(DATADIR, 'backtesting')
         objfilename = f"{self.name}.json"
@@ -928,6 +930,12 @@ class System:
             json.dump(jsonobj, f)
 
         #새창에서 열기
+        
+
         url = os.path.abspath(savepath)
-        webbrowser.open(url)
+        options = webdriver.ChromeOptions()
+        options.add_argument("--disable-web-security")
+        options.add_experimental_option("detach", True)
+        driver = webdriver.Chrome(options=options)
+        driver.get(url)
 
