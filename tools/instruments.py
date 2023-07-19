@@ -41,6 +41,7 @@ class Instrument:
         self._tradable = True if instrument['tradable'] == '1' else False 
         self._number_system = int(instrument['number_system'] or 0)
         self._sector = instrument['sector']
+        self.ebestname = instrument['ebestname']
         self._info = {
             'symbol': self._symbol,
             'name': self._name,
@@ -301,9 +302,16 @@ class Instruments(dict):
             
         return sectors
 
+    def get(self, **kwargs):
+        lists = []
+        for instrument in self.values():
+            if all(getattr(instrument, param) == value for param , value in kwargs.items()):
+                lists.append(instrument)
+
+        return lists
 
 
-    def get_symbols(self, *args):
+    def get_symbols(self, **args):
         """
         kwargs에 들어있는 field 값을 가지고 있는 모든 종목의 심볼 리스트를 반환
         """
@@ -437,7 +445,7 @@ class Instruments(dict):
         )
                 
 
-    def month_code(self, month):
+    def code_to_month(self, month):
         """
         선물 월물기호를 숫자(월) 로 반환
         """
@@ -454,6 +462,26 @@ class Instruments(dict):
             'V': 10,
             'X': 11,
             'Z': 12,
+        }
+        return code[month]
+    
+    def month_to_code(self, month):
+        """
+        월(숫자)를 선물 월물기호로 반환
+        """
+        code = {
+            '01': 'F',
+            '02': 'G',
+            '03': 'H',
+            '04': 'J',
+            '05': 'K',
+            '06': 'M',
+            '07': 'N',
+            '08': 'Q',
+            '09': 'U',
+            '10': 'V',
+            '11': 'X',
+            '12': 'Z',
         }
         return code[month]
     
