@@ -11,7 +11,7 @@ to_date:  '2022-05-04'
 
 
 # 투자 원금
-principal: 100000 # 단위(dollar)
+principal: 1000000 # 단위(dollar)
 
 
 # 리스크 설정
@@ -31,28 +31,25 @@ allow_pyramiding: False
 #지표
 metrics: 
  # - [name, metric, params]
- #- [sidetrend200prob, TRENDPROB, direction='side', period=200]
- #- [downtrend200prob, TRENDPROB, direction='down', period=200]
- #- [downtrend20, TRENDAGE, direction='down', 'period=20', threshold=0.7]
- #- [uptrend20prob, TRENDPROB, direction='up', 'period=20']
- - [uptrend50, TRENDAGE, direction='up', 'period=50', threshold=0.9]
- - [sidetrend20prob, TRENDPROB, direction='side', 'period=20']
+ - [uptrend20, TRENDPROB, direction='up', 'period=20']
+ - [uptrendage, TRENDAGE, direction='up', 'period=20', 'threshold=0.9']
+ - [downtrend100, TRENDPROB, direction='down', 'period=100']
  - [max20, MAX, period=20]
- - [pddown, PD, tau=50, percentile=65]
- #- [pd1, PD, tau=10, percentile=1]
- - [pdup, PD, tau=50, percentile=95]
+ - [pd75, PD, tau=10, percentile=75]
+ - [pd, PD, tau=10, percentile=10]
+ #- [pdup, PD, tau=50, percentile=95]
 
 entry_rule: 
- long: ~
- short: uptrend50>10 & sidetrend20prob>0.6 & high>pdup
+ long: ~ #sidetrend100>1 & downtrend20==1
+ short: downtrend100>0.9 & uptrend20>0.9
 
 exit_rule: 
- long: ~
- short: low<pddown
+ long:  ~ #~ low < pd
+ short: low<pd
 
 stop_rule: 
  long: ~
- short: max20
+ short: pd75
  
 
 
